@@ -85,10 +85,10 @@ class ServerConnector:
         )
         return r.json()
 
-    def create_device(self, title: str) -> bool:
+    def create_device(self, name: str) -> bool:
         r = self.client.post(
             "en/main_add/ajaj",
-            data={"cmd": "add_rtmp", "sbin": 0, "sign": self.form_sign, "title": title},
+            data={"cmd": "add_rtmp", "sbin": 0, "sign": self.form_sign, "title": name},
         )
         return r.status_code == 200
 
@@ -139,8 +139,33 @@ class ServerConnector:
         )
         return r.json()
 
+    def update_output(
+        self,
+        rtmp_id: str,
+        output_id: str,
+        server_url: str,
+        shared_key: str,
+        title: str,
+        audio: int = 0,
+    ):
+        r = self.client.post(
+            "en/out_rtmp_rtmp/ajaj",
+            data={
+                "cmd": "update",
+                "rtmp_id": rtmp_id,
+                "oid": output_id,
+                "sign": self.form_sign,
+                "server_url": server_url,
+                "shared_key": shared_key,
+                "title": title,
+                "audio": audio,
+            },
+            headers=AJAX_HEADERS,
+        )
+        return r.json()
+
     def create_output(
-        self, rtmp_id: str, server_url: str, shared_key: str, title: str
+        self, rtmp_id: str, server_url: str, shared_key: str, title: str, audio: int = 0
     ) -> Dict:
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
@@ -152,7 +177,7 @@ class ServerConnector:
                 "server_url": server_url,
                 "shared_key": shared_key,
                 "title": title,
-                "audio": 0,
+                "audio": audio,
             },
             headers=AJAX_HEADERS,
         )
@@ -166,15 +191,35 @@ class ServerConnector:
         )
         return r.json()
 
-    def start_output(self, oid: str) -> Dict:
+    def _output_management(self, oid, cmd):
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
             data={
-                "cmd": "start",
+                "cmd": cmd,
                 "sign": self.form_sign,
                 "oid": oid,
                 "ignore_dirty_buffer": False,
             },
+            headers=AJAX_HEADERS,
+        )
+        return r.json()
+
+    def start_output(self, oid: str) -> Dict:
+        return self._output_management(oid, "start")
+
+    def stop_output(self, oid: str) -> Dict:
+        return self._output_management(oid, "stop")
+
+    def select_server(self, rtmp_id, server_id):
+        r = self.client.post(
+            "en/rtmp",
+            data={
+                "cmd": "select_server",
+                "sign": self.form_sign,
+                "rtmp_id": rtmp_id,
+                "server_id": server_id,
+            },
+            params={"rtmp_id": rtmp_id},
             headers=AJAX_HEADERS,
         )
         return r.json()
