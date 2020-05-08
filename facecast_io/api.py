@@ -114,6 +114,7 @@ class FacecastAPI:
                 shared_key=stream["shared_key"],
             )
             logging.info(f"{device.name} {output}")
+            sleep(3)
         return device
 
     @auth_required
