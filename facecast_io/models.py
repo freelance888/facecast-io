@@ -6,7 +6,7 @@ from typing import List, Optional
 import attr
 from attr import dataclass
 
-from .server_connector import ServerConnector
+from .core.server_connector import ServerConnector
 from .utils import to_bool
 
 

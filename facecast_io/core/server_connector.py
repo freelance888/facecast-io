@@ -6,6 +6,7 @@ import yarl
 from httpx import Client
 from pyquery import PyQuery as pq
 
+from .entities import DeviceSimple, DeviceInput, DeviceOutputStatus
 
 BASE_URL = "https://b1.facecast.io/"
 BASE_HEADERS = {
@@ -66,13 +67,15 @@ class ServerConnector:
         self.is_authorized = False
         raise AuthError("AuthService error")
 
-    def get_devices(self) -> List[Dict]:
+    def get_devices(self) -> List[DeviceSimple]:
         r = self.client.get("en/main")
         d = pq(r.text)
         devices = d(".sb-streamboxes-main-list a")
         devices_names = devices.find(".sb-streambox-item-name")
         return [
-            dict(rtmp_id=device.attrib["href"].split("=")[1], name=device_name.text,)
+            DeviceSimple(
+                rtmp_id=device.attrib["href"].split("=")[1], name=device_name.text,
+            )
             for device, device_name in zip(devices, devices_names)
         ]
 
@@ -110,7 +113,7 @@ class ServerConnector:
         if yarl.URL(server_url).host is None:
             return self.get_input_params(rtmp_id)
         shared_key = d(".sb-input-sharedkey").attr["value"]
-        return dict(server_url=server_url, shared_key=shared_key)
+        return DeviceInput(server_url=server_url, shared_key=shared_key)
 
     def get_status(self, rtmp_id: str) -> Dict:
         r = self.client.post(
@@ -172,7 +175,7 @@ class ServerConnector:
         title: str,
         audio: int = 0,
         stream_type: Literal["rtmp", "mpegts"] = "rtmp",
-    ) -> Dict:
+    ) -> DeviceOutputStatus:
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
             data={

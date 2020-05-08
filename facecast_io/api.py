@@ -3,12 +3,12 @@ from __future__ import absolute_import
 import functools
 import logging
 from time import sleep
-from typing import List, Optional, Literal, Dict, TypedDict, Tuple
+from typing import List, Optional, Literal, TypedDict
 
 import httpx
 
 from .models import Device
-from facecast_io.server_connector import (
+from .core.server_connector import (
     ServerConnector,
     BASE_URL,
     BASE_HEADERS,
