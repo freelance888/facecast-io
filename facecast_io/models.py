@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import attr
 from attr import dataclass
 
+from .core.entities import SelectServerStatus
+from .logger_setup import logger
 from .core.server_connector import ServerConnector
 from .utils import to_bool
 
@@ -105,6 +107,7 @@ class Device:
     outputs: List[DeviceOutput] = attr.attrib(factory=list)
     input: Optional[DeviceInput] = None
     status: Optional[DeviceStatus] = None
+    available_servers: Optional = None
 
     def _update_device_info(self):
         device_data = self.server_connector.get_device(self.rtmp_id)
@@ -144,6 +147,11 @@ class Device:
             do.update()
             self.outputs.append(do)
 
+    def _update_available_servers(self):
+        self.available_servers = self.server_connector.get_available_servers(
+            self.rtmp_id
+        )
+
     def _update_input(self):
         device_input = self.server_connector.get_input_params(self.rtmp_id)
         di = DeviceInput(
@@ -159,6 +167,7 @@ class Device:
         self._update_device_status()
         self._update_input()
         self._update_outputs()
+        self._update_available_servers()
 
     def create_output(
         self, name, server_url, shared_key, audio=0
@@ -190,11 +199,34 @@ class Device:
     def start_outputs(self):
         for o in self.outputs:
             o.start()
+        return True
 
     def stop_outputs(self):
         for o in self.outputs:
             o.stop()
+        return True
 
     def delete_outputs(self):
         for o in self.outputs:
             o.delete()
+        return True
+
+    def delete(self):
+        self.delete_outputs()
+        self.server_connector.delete_device(self.rtmp_id)
+        return True
+
+    def select_server(self, server_id: Union[int, str]) -> SelectServerStatus:
+        self._update_available_servers()
+        if str(server_id) not in [s["id"] for s in self.available_servers]:
+            raise Exception("Not allowed server_id")
+        return self.server_connector.select_server(self.rtmp_id, server_id)
+
+    def select_fastest_server(self) -> Optional[SelectServerStatus]:
+        self._update_available_servers()
+        if not self.available_servers:
+            logger.warning("Failed to select server")
+            return
+        return self.server_connector.select_server(
+            self.rtmp_id, self.available_servers[0]["id"]
+        )

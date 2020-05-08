@@ -1,7 +1,8 @@
+import json
 import re
 from copy import copy
 from json import JSONDecodeError
-from typing import Dict, List, Literal, cast
+from typing import Dict, List, Literal, cast, Union
 
 import yarl
 from httpx import Client
@@ -20,6 +21,7 @@ from .entities import (
     DeviceInfo,
     DeviceOutput,
     DeviceStatusFull,
+    SelectServer,
 )
 
 BASE_URL = "https://b1.facecast.io/"
@@ -38,7 +40,15 @@ AJAX_HEADERS.update(
 )
 
 
-class AuthError(Exception):
+class FacecastAPIError(Exception):
+    ...
+
+
+class AuthError(FacecastAPIError):
+    ...
+
+
+class DeviceNotFound(FacecastAPIError):
     ...
 
 
@@ -72,7 +82,7 @@ class ServerConnector:
         tries=RETRY_TRIES,
         delay=RETRY_DELAY,
         jitter=RETRY_JITTER,
-        logger=logger.warning,
+        logger=logger,
     )
     def do_auth(self, username: str, password: str) -> bool:
         r = self.client.get("en/main")
@@ -117,7 +127,7 @@ class ServerConnector:
         tries=RETRY_TRIES,
         delay=RETRY_DELAY,
         jitter=RETRY_JITTER,
-        logger=logger.warning,
+        logger=logger,
     )
     def get_device(self, rtmp_id: str) -> DeviceInfo:
         r = self.client.post(
@@ -126,6 +136,8 @@ class ServerConnector:
             params={"rtmp_id": rtmp_id},
             headers=AJAX_HEADERS,
         )
+        if r.url.path == "/en/main":
+            raise DeviceNotFound(f"{rtmp_id} isn't available")
         data = r.json()
         logger.debug(f"Got device: {data}")
         return cast(DeviceInfo, data)
@@ -135,7 +147,7 @@ class ServerConnector:
         tries=RETRY_TRIES,
         delay=RETRY_DELAY,
         jitter=RETRY_JITTER,
-        logger=logger.warning,
+        logger=logger,
     )
     def create_device(self, name: str) -> bool:
         r = self.client.post(
@@ -199,7 +211,7 @@ class ServerConnector:
         tries=RETRY_TRIES,
         delay=RETRY_DELAY,
         jitter=RETRY_JITTER,
-        logger=logger.warning,
+        logger=logger,
     )
     def get_outputs(self, rtmp_id: str) -> List[DeviceOutput]:
         r = self.client.post(
@@ -217,7 +229,7 @@ class ServerConnector:
         tries=RETRY_TRIES,
         delay=RETRY_DELAY,
         jitter=RETRY_JITTER,
-        logger=logger.warning,
+        logger=logger,
     )
     def update_output(
         self,
@@ -284,7 +296,7 @@ class ServerConnector:
         tries=RETRY_TRIES,
         delay=RETRY_DELAY,
         jitter=RETRY_JITTER,
-        logger=logger.warning,
+        logger=logger,
     )
     def delete_output(self, rtmp_id: str, oid: str) -> DeviceOutput:
         r = self.client.post(
@@ -306,7 +318,7 @@ class ServerConnector:
         tries=RETRY_TRIES,
         delay=RETRY_DELAY,
         jitter=RETRY_JITTER,
-        logger=logger.warning,
+        logger=logger,
     )
     def _output_management(self, rtmp_id: str, oid: str, cmd: str):
         r = self.client.post(
@@ -328,14 +340,25 @@ class ServerConnector:
     def stop_output(self, rtmp_id: str, oid: str) -> OutputStatus:
         return cast(OutputStatus, self._output_management(rtmp_id, oid, "stop"))
 
+    def get_available_servers(self, rtmp_id: str) -> List[SelectServer]:
+        r = self.client.post("en/rtmp_server?mode=", data={"rtmp_id": rtmp_id})
+        match = re.search(r"var servers = (\[.*\]);", r.text)
+        if match:
+            data = json.loads(match.group(1))
+            logger.debug(f"Got next servers list {data}")
+            return [SelectServer(id=d["id"], name=d["name"]) for d in data]
+        raise Exception
+
     @retry(
         JSONDecodeError,
         tries=RETRY_TRIES,
         delay=RETRY_DELAY,
         jitter=RETRY_JITTER,
-        logger=logger.warning,
+        logger=logger,
     )
-    def select_server(self, rtmp_id: str, server_id: int) -> SelectServerStatus:
+    def select_server(
+        self, rtmp_id: str, server_id: Union[int, str]
+    ) -> SelectServerStatus:
         r = self.client.post(
             "en/rtmp",
             data={

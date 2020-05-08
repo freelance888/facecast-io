@@ -34,21 +34,10 @@ class Stream(TypedDict):
     shared_key: str
 
 
-SERVER_LIST = Literal[
-    19,
-]
-
-
 class FacecastAPI:
     def __init__(self, auth: Optional[tuple] = None):
         self.client = httpx.Client(
-            base_url=BASE_URL,
-            verify=False,
-            headers=BASE_HEADERS,
-            # proxies={
-            #     "http": "http://localhost:8000",
-            #     "https": "https://localhost:8000",
-            # },
+            base_url=BASE_URL, verify=False, headers=BASE_HEADERS,
         )
         self.server_connector = ServerConnector(self.client)
         if auth:
@@ -84,28 +73,26 @@ class FacecastAPI:
         self.server_connector.delete_device(dev.rtmp_id)
 
     @auth_required
-    def create_new_device(self, name: str, server_id: SERVER_LIST) -> Device:
+    def create_new_device(self, name: str) -> Device:
         if self.server_connector.create_device(name):
             device = self.get_device(name, update=True)
             if device is None:
                 raise APIError("Device didn't created")
-            result = self.server_connector.select_server(device.rtmp_id, server_id)
+            result = device.select_fastest_server()
             device.input.shared_key = result["sharedkey"]
             return cast(Device, device)
         raise APIError("Some error happened during creation")
 
     @auth_required
-    def get_or_create_device(self, name: str, server_id: SERVER_LIST) -> Device:
+    def get_or_create_device(self, name: str) -> Device:
         device = self.get_device(name, update=True)
         if device:
             return cast(Device, device)
-        return cast(Device, self.create_new_device(name, server_id))
+        return cast(Device, self.create_new_device(name))
 
     @auth_required
-    def create_device_and_outputs(
-        self, name, server_id: SERVER_LIST, streams_data: List[Stream]
-    ) -> Device:
-        device = self.get_or_create_device(name, server_id)
+    def create_device_and_outputs(self, name, streams_data: List[Stream]) -> Device:
+        device = self.get_or_create_device(name)
         device.delete_outputs()
         for stream in streams_data:
             output = device.create_output(
