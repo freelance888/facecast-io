@@ -1,12 +1,22 @@
 import re
 from copy import copy
-from typing import Dict, List, Literal
+from typing import Dict, List, Literal, cast
 
 import yarl
 from httpx import Client
-from pyquery import PyQuery as pq
+from pyquery import PyQuery as pq  # type:ignore
 
-from .entities import DeviceSimple, DeviceInput, DeviceOutputStatus
+from .entities import (
+    DeviceSimple,
+    DeviceInput,
+    DeviceOutputStatus,
+    SelectServerStatus,
+    OutputStatus,
+    OutputStatusStart,
+    DeviceInfo,
+    DeviceOutput,
+    DeviceStatusFull,
+)
 
 BASE_URL = "https://b1.facecast.io/"
 BASE_HEADERS = {
@@ -60,7 +70,7 @@ class ServerConnector:
             data={"login": username, "pass": password, "signature": signature,},
             headers=AJAX_HEADERS,
         )
-        if r.status_code == 200 and r.json().get("ok"):
+        if r.status_code == 200 and r.json().get("ok"):  # type: ignore
             self.is_authorized = True
             self._update_from_sign()
             return True
@@ -79,14 +89,14 @@ class ServerConnector:
             for device, device_name in zip(devices, devices_names)
         ]
 
-    def get_device(self, rtmp_id: str) -> Dict:
+    def get_device(self, rtmp_id: str) -> DeviceInfo:
         r = self.client.post(
             "en/rtmp",
             data={"action": "get_info"},
             params={"rtmp_id": rtmp_id},
             headers=AJAX_HEADERS,
         )
-        return r.json()
+        return cast(DeviceInfo, r.json())
 
     def create_device(self, name: str) -> bool:
         r = self.client.post(
@@ -106,7 +116,7 @@ class ServerConnector:
         )
         return r.status_code == 200
 
-    def get_input_params(self, rtmp_id: str) -> Dict:
+    def get_input_params(self, rtmp_id: str) -> DeviceInput:
         r = self.client.get("en/rtmp", params={"rtmp_id": rtmp_id})
         d = pq(r.text)
         server_url = d(".sb-input-input-url").attr["value"]
@@ -115,7 +125,7 @@ class ServerConnector:
         shared_key = d(".sb-input-sharedkey").attr["value"]
         return DeviceInput(server_url=server_url, shared_key=shared_key)
 
-    def get_status(self, rtmp_id: str) -> Dict:
+    def get_status(self, rtmp_id: str) -> DeviceStatusFull:
         r = self.client.post(
             "en/rtmp/ajaj",
             data={
@@ -131,16 +141,16 @@ class ServerConnector:
             params={"rtmp_id": rtmp_id},
             headers=AJAX_HEADERS,
         )
-        return r.json()
+        return cast(DeviceStatusFull, r.json())
 
-    def get_outputs(self, rtmp_id: str) -> Dict:
+    def get_outputs(self, rtmp_id: str) -> List[DeviceOutput]:
         r = self.client.post(
             "en/rtmp_outputs/ajaj",
             data={"cmd": "getlist", "rtmp_id": rtmp_id, "sign": self.form_sign},
             params={"rtmp_id": rtmp_id},
             headers=AJAX_HEADERS,
         )
-        return r.json()
+        return cast(List[DeviceOutput], r.json())
 
     def update_output(
         self,
@@ -150,7 +160,7 @@ class ServerConnector:
         shared_key: str,
         title: str,
         audio: int = 0,
-    ):
+    ) -> DeviceOutput:
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
             data={
@@ -165,7 +175,7 @@ class ServerConnector:
             },
             headers=AJAX_HEADERS,
         )
-        return r.json()
+        return cast(DeviceOutput, r.json())
 
     def create_output(
         self,
@@ -191,9 +201,9 @@ class ServerConnector:
             },
             headers=AJAX_HEADERS,
         )
-        return r.json()
+        return cast(DeviceOutputStatus, r.json())
 
-    def delete_output(self, rtmp_id: str, oid: str) -> Dict:
+    def delete_output(self, rtmp_id: str, oid: str) -> DeviceOutput:
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
             data={
@@ -204,13 +214,14 @@ class ServerConnector:
             },
             headers=AJAX_HEADERS,
         )
-        return r.json()
+        return cast(DeviceOutput, r.json())
 
-    def _output_management(self, oid, cmd):
+    def _output_management(self, rtmp_id: str, oid: str, cmd: str):
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
             data={
                 "cmd": cmd,
+                "rtmp_id": rtmp_id,
                 "sign": self.form_sign,
                 "oid": oid,
                 "ignore_dirty_buffer": False,
@@ -219,13 +230,13 @@ class ServerConnector:
         )
         return r.json()
 
-    def start_output(self, oid: str) -> Dict:
-        return self._output_management(oid, "start")
+    def start_output(self, rtmp_id: str, oid: str) -> OutputStatusStart:
+        return cast(OutputStatusStart, self._output_management(rtmp_id, oid, "start"))
 
-    def stop_output(self, oid: str) -> Dict:
-        return self._output_management(oid, "stop")
+    def stop_output(self, rtmp_id: str, oid: str) -> OutputStatus:
+        return cast(OutputStatus, self._output_management(rtmp_id, oid, "stop"))
 
-    def select_server(self, rtmp_id, server_id):
+    def select_server(self, rtmp_id: str, server_id: int) -> SelectServerStatus:
         r = self.client.post(
             "en/rtmp",
             data={
@@ -237,4 +248,4 @@ class ServerConnector:
             params={"rtmp_id": rtmp_id},
             headers=AJAX_HEADERS,
         )
-        return r.json()
+        return cast(SelectServerStatus, r.json())
