@@ -42,7 +42,7 @@ class DeviceInput:
 
     server_url: str
     shared_key: str
-    status: DeviceInputStatus = None
+    status: Optional[DeviceInputStatus] = None
 
     def update(self):
         input_status = self.device.server_connector.get_status(self.device.rtmp_id).get(
@@ -74,20 +74,21 @@ class DeviceOutput:
     type: str
     id: str
     cloud: int
-    status: DeviceOutputStatus = None
+    status: Optional[DeviceOutputStatus] = None
 
     def update(self):
-        output_status = self.device.server_connector.get_status(
-            self.device.rtmp_id
-        ).get("output_")
-        if output_status:
-            self.status = DeviceOutputStatus(output=self,)
+        ...
+        # output_status = self.device.server_connector.get_status(
+        #     self.device.rtmp_id
+        # ).get("get_status")
+        # if output_status:
+        #     self.status = DeviceOutputStatus(output=self,)
 
     def start(self):
-        return self.device.server_connector.start_output(self.id)
+        return self.device.server_connector.start_output(self.device.rtmp_id, self.id)
 
     def stop(self):
-        return self.device.server_connector.stop_output(self.id)
+        return self.device.server_connector.stop_output(self.device.rtmp_id, self.id)
 
     def delete(self):
         return self.device.server_connector.delete_output(self.device.rtmp_id, self.id)
@@ -98,13 +99,13 @@ class Device:
     server_connector: ServerConnector
     name: str
     rtmp_id: str
-    online: bool = None
-    type: str = None
-    lang: str = None
-    updates: bool = None
+    online: Optional[bool] = None
+    type: Optional[str] = None
+    lang: Optional[str] = None
+    updates: Optional[bool] = None
     outputs: List[DeviceOutput] = attr.attrib(factory=list)
-    input: DeviceInput = None
-    status: DeviceStatus = None
+    input: Optional[DeviceInput] = None
+    status: Optional[DeviceStatus] = None
 
     def _update_device_info(self):
         device_data = self.server_connector.get_device(self.rtmp_id)
@@ -172,7 +173,7 @@ class Device:
         )
         if not to_bool(r["ok"]):
             logging.error(r["msg"])
-            return
+            return None
         o = r["outputs"][0]
 
         do = DeviceOutput(

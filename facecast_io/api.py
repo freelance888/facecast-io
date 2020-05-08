@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import functools
 import logging
 from time import sleep
-from typing import List, Optional, Literal, TypedDict
+from typing import List, Optional, Literal, TypedDict, cast
 
 import httpx
 
@@ -81,7 +81,7 @@ class FacecastAPI:
         dev = self.get_device(name)
         outputs = self.server_connector.get_outputs(dev.rtmp_id)
         for o in outputs:
-            self.server_connector.delete_output(o["id"])
+            self.server_connector.delete_output(dev.rtmp_id, o["id"])
         self.server_connector.delete_device(dev.rtmp_id)
 
     @auth_required
@@ -89,17 +89,19 @@ class FacecastAPI:
         if self.server_connector.create_device(name):
             sleep(5)
             device = self.get_device(name, update=True)
+            if device is None:
+                raise APIError("Device didn't created")
             result = self.server_connector.select_server(device.rtmp_id, server_id)
             device.input.shared_key = result["sharedkey"]
-            return device
+            return cast(Device, device)
         raise APIError("Some error happened during creation")
 
     @auth_required
     def get_or_create_device(self, name: str, server_id: SERVER_LIST) -> Device:
         device = self.get_device(name, update=True)
         if device:
-            return device
-        return self.create_new_device(name, server_id)
+            return cast(Device, device)
+        return cast(Device, self.create_new_device(name, server_id))
 
     @auth_required
     def create_device_and_outputs(
@@ -115,7 +117,7 @@ class FacecastAPI:
             )
             logging.info(f"{device.name} {output}")
             sleep(3)
-        return device
+        return cast(Device, device)
 
     @auth_required
     def get_device(self, name, update=False) -> Optional[Device]:
@@ -124,7 +126,8 @@ class FacecastAPI:
             device = devices[-1]
             if update:
                 device.update()
-            return device
+            return cast(Device, device)
+        return None
 
     @auth_required
     def start_outputs(self):
