@@ -4,7 +4,7 @@ from time import sleep
 import httpx
 import pytest
 
-from facecast_io.server_connector import ServerConnector, BASE_URL, BASE_HEADERS
+from facecast_io import ServerConnector, BASE_URL, BASE_HEADERS
 
 TEST_DEVICE_NAME = "TEST_DEVICE_NAME"
 
