@@ -6,6 +6,9 @@ from time import sleep
 from typing import List, Optional, Literal, TypedDict, cast
 
 import httpx
+import urllib3
+
+urllib3.disable_warnings()
 
 from .models import Device
 from .core.server_connector import (
