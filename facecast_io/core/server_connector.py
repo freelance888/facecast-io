@@ -1,10 +1,12 @@
 import re
 from copy import copy
+from json import JSONDecodeError
 from typing import Dict, List, Literal, cast
 
 import yarl
 from httpx import Client
 from pyquery import PyQuery as pq  # type:ignore
+from retry import retry
 
 from .entities import (
     DeviceSimple,
@@ -38,6 +40,11 @@ class AuthError(Exception):
     ...
 
 
+RETRY_TRIES = 3
+RETRY_DELAY = 4
+RETRY_JITTER = (2, 7)
+
+
 class ServerConnector:
     def __init__(self, client: Client):
         self.client = client
@@ -58,6 +65,7 @@ class ServerConnector:
             return match.group(1)
         raise AuthError("Failed to fetch signature")
 
+    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
     def do_auth(self, username: str, password: str) -> bool:
         r = self.client.get("en/main")
         if r.url == "en/main":
@@ -89,6 +97,7 @@ class ServerConnector:
             for device, device_name in zip(devices, devices_names)
         ]
 
+    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
     def get_device(self, rtmp_id: str) -> DeviceInfo:
         r = self.client.post(
             "en/rtmp",
@@ -98,6 +107,7 @@ class ServerConnector:
         )
         return cast(DeviceInfo, r.json())
 
+    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
     def create_device(self, name: str) -> bool:
         r = self.client.post(
             "en/main_add/ajaj",
@@ -143,6 +153,7 @@ class ServerConnector:
         )
         return cast(DeviceStatusFull, r.json())
 
+    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
     def get_outputs(self, rtmp_id: str) -> List[DeviceOutput]:
         r = self.client.post(
             "en/rtmp_outputs/ajaj",
@@ -152,6 +163,7 @@ class ServerConnector:
         )
         return cast(List[DeviceOutput], r.json())
 
+    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
     def update_output(
         self,
         rtmp_id: str,
@@ -177,6 +189,7 @@ class ServerConnector:
         )
         return cast(DeviceOutput, r.json())
 
+    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
     def create_output(
         self,
         rtmp_id: str,
@@ -203,6 +216,7 @@ class ServerConnector:
         )
         return cast(DeviceOutputStatus, r.json())
 
+    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
     def delete_output(self, rtmp_id: str, oid: str) -> DeviceOutput:
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
@@ -216,6 +230,7 @@ class ServerConnector:
         )
         return cast(DeviceOutput, r.json())
 
+    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
     def _output_management(self, rtmp_id: str, oid: str, cmd: str):
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
@@ -236,6 +251,7 @@ class ServerConnector:
     def stop_output(self, rtmp_id: str, oid: str) -> OutputStatus:
         return cast(OutputStatus, self._output_management(rtmp_id, oid, "stop"))
 
+    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
     def select_server(self, rtmp_id: str, server_id: int) -> SelectServerStatus:
         r = self.client.post(
             "en/rtmp",
