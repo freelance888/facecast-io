@@ -1,6 +1,6 @@
 import re
 from copy import copy
-from typing import Dict, List
+from typing import Dict, List, Literal
 
 import yarl
 from httpx import Client
@@ -165,18 +165,25 @@ class ServerConnector:
         return r.json()
 
     def create_output(
-        self, rtmp_id: str, server_url: str, shared_key: str, title: str, audio: int = 0
+        self,
+        rtmp_id: str,
+        server_url: str,
+        shared_key: str,
+        title: str,
+        audio: int = 0,
+        stream_type: Literal["rtmp", "mpegts"] = "rtmp",
     ) -> Dict:
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
             data={
-                "cmd": "insert",
+                "cmd": "add",
                 "rtmp_id": rtmp_id,
                 "oid": 0,
                 "sign": self.form_sign,
                 "server_url": server_url,
                 "shared_key": shared_key,
-                "title": title,
+                "descr": title,
+                "type": stream_type,
                 "audio": audio,
             },
             headers=AJAX_HEADERS,
