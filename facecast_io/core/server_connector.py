@@ -8,6 +8,8 @@ from httpx import Client
 from pyquery import PyQuery as pq  # type:ignore
 from retry import retry
 
+
+from facecast_io.logger_setup import logger
 from .entities import (
     DeviceSimple,
     DeviceInput,
@@ -41,7 +43,7 @@ class AuthError(Exception):
 
 
 RETRY_TRIES = 3
-RETRY_DELAY = 4
+RETRY_DELAY = 5
 RETRY_JITTER = (2, 7)
 
 
@@ -65,7 +67,13 @@ class ServerConnector:
             return match.group(1)
         raise AuthError("Failed to fetch signature")
 
-    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
+    @retry(
+        JSONDecodeError,
+        tries=RETRY_TRIES,
+        delay=RETRY_DELAY,
+        jitter=RETRY_JITTER,
+        logger=logger.warning,
+    )
     def do_auth(self, username: str, password: str) -> bool:
         r = self.client.get("en/main")
         if r.url == "en/main":
@@ -81,6 +89,7 @@ class ServerConnector:
         if r.status_code == 200 and r.json().get("ok"):  # type: ignore
             self.is_authorized = True
             self._update_from_sign()
+            logger.info("Auth successful")
             return True
         self.is_authorized = False
         raise AuthError("AuthService error")
@@ -90,6 +99,12 @@ class ServerConnector:
         d = pq(r.text)
         devices = d(".sb-streamboxes-main-list a")
         devices_names = devices.find(".sb-streambox-item-name")
+        if devices_names:
+            logger.info(
+                f"Got devices with following names: {[d.text for d in devices_names]}"
+            )
+        else:
+            logger.info("No devices")
         return [
             DeviceSimple(
                 rtmp_id=device.attrib["href"].split("=")[1], name=device_name.text,
@@ -97,7 +112,13 @@ class ServerConnector:
             for device, device_name in zip(devices, devices_names)
         ]
 
-    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
+    @retry(
+        JSONDecodeError,
+        tries=RETRY_TRIES,
+        delay=RETRY_DELAY,
+        jitter=RETRY_JITTER,
+        logger=logger.warning,
+    )
     def get_device(self, rtmp_id: str) -> DeviceInfo:
         r = self.client.post(
             "en/rtmp",
@@ -105,15 +126,27 @@ class ServerConnector:
             params={"rtmp_id": rtmp_id},
             headers=AJAX_HEADERS,
         )
-        return cast(DeviceInfo, r.json())
+        data = r.json()
+        logger.debug(f"Got device: {data}")
+        return cast(DeviceInfo, data)
 
-    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
+    @retry(
+        JSONDecodeError,
+        tries=RETRY_TRIES,
+        delay=RETRY_DELAY,
+        jitter=RETRY_JITTER,
+        logger=logger.warning,
+    )
     def create_device(self, name: str) -> bool:
         r = self.client.post(
             "en/main_add/ajaj",
             data={"cmd": "add_rtmp", "sbin": 0, "sign": self.form_sign, "title": name},
         )
-        return r.status_code == 200
+        if r.status_code == 200:
+            logger.info(f"Device {name} was created")
+            return True
+        logger.info(f"Device {name} was not created")
+        return False
 
     def delete_device(self, rtmp_id: str) -> bool:
         r = self.client.post(
@@ -124,7 +157,11 @@ class ServerConnector:
                 "rtmp_id": rtmp_id,
             },
         )
-        return r.status_code == 200
+        if r.status_code == 200:
+            logger.info(f"Device {rtmp_id} was deleted")
+            return True
+        logger.info(f"Device {rtmp_id} was not deleted")
+        return False
 
     def get_input_params(self, rtmp_id: str) -> DeviceInput:
         r = self.client.get("en/rtmp", params={"rtmp_id": rtmp_id})
@@ -133,7 +170,9 @@ class ServerConnector:
         if yarl.URL(server_url).host is None:
             return self.get_input_params(rtmp_id)
         shared_key = d(".sb-input-sharedkey").attr["value"]
-        return DeviceInput(server_url=server_url, shared_key=shared_key)
+        di = DeviceInput(rtmp_id=rtmp_id, server_url=server_url, shared_key=shared_key)
+        logger.debug(f"DeviceInput {di}")
+        return di
 
     def get_status(self, rtmp_id: str) -> DeviceStatusFull:
         r = self.client.post(
@@ -151,9 +190,17 @@ class ServerConnector:
             params={"rtmp_id": rtmp_id},
             headers=AJAX_HEADERS,
         )
-        return cast(DeviceStatusFull, r.json())
+        data = r.json()
+        logger.debug(f"Got device status: {data}")
+        return cast(DeviceStatusFull, data)
 
-    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
+    @retry(
+        JSONDecodeError,
+        tries=RETRY_TRIES,
+        delay=RETRY_DELAY,
+        jitter=RETRY_JITTER,
+        logger=logger.warning,
+    )
     def get_outputs(self, rtmp_id: str) -> List[DeviceOutput]:
         r = self.client.post(
             "en/rtmp_outputs/ajaj",
@@ -161,9 +208,17 @@ class ServerConnector:
             params={"rtmp_id": rtmp_id},
             headers=AJAX_HEADERS,
         )
-        return cast(List[DeviceOutput], r.json())
+        data = r.json()
+        logger.debug(f"Got device outputs: {data}")
+        return cast(List[DeviceOutput], data)
 
-    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
+    @retry(
+        JSONDecodeError,
+        tries=RETRY_TRIES,
+        delay=RETRY_DELAY,
+        jitter=RETRY_JITTER,
+        logger=logger.warning,
+    )
     def update_output(
         self,
         rtmp_id: str,
@@ -187,9 +242,13 @@ class ServerConnector:
             },
             headers=AJAX_HEADERS,
         )
-        return cast(DeviceOutput, r.json())
+        data = r.json()
+        logger.debug(f"Updated device output: {data}")
+        return cast(DeviceOutput, data)
 
-    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
+    @retry(
+        JSONDecodeError, tries=RETRY_TRIES + 5, delay=RETRY_DELAY, jitter=RETRY_JITTER
+    )
     def create_output(
         self,
         rtmp_id: str,
@@ -214,9 +273,19 @@ class ServerConnector:
             },
             headers=AJAX_HEADERS,
         )
-        return cast(DeviceOutputStatus, r.json())
+        if r.text == "No auth":
+            raise AuthError
+        data = r.json()
+        logger.debug(f"Updated device output: {data}")
+        return cast(DeviceOutputStatus, data)
 
-    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
+    @retry(
+        JSONDecodeError,
+        tries=RETRY_TRIES,
+        delay=RETRY_DELAY,
+        jitter=RETRY_JITTER,
+        logger=logger.warning,
+    )
     def delete_output(self, rtmp_id: str, oid: str) -> DeviceOutput:
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
@@ -228,9 +297,17 @@ class ServerConnector:
             },
             headers=AJAX_HEADERS,
         )
-        return cast(DeviceOutput, r.json())
+        data = r.json()
+        logger.debug(f"Deleted device output: {data}")
+        return cast(DeviceOutput, data)
 
-    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
+    @retry(
+        JSONDecodeError,
+        tries=RETRY_TRIES,
+        delay=RETRY_DELAY,
+        jitter=RETRY_JITTER,
+        logger=logger.warning,
+    )
     def _output_management(self, rtmp_id: str, oid: str, cmd: str):
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
@@ -251,7 +328,13 @@ class ServerConnector:
     def stop_output(self, rtmp_id: str, oid: str) -> OutputStatus:
         return cast(OutputStatus, self._output_management(rtmp_id, oid, "stop"))
 
-    @retry(JSONDecodeError, tries=RETRY_TRIES, delay=RETRY_DELAY, jitter=RETRY_JITTER)
+    @retry(
+        JSONDecodeError,
+        tries=RETRY_TRIES,
+        delay=RETRY_DELAY,
+        jitter=RETRY_JITTER,
+        logger=logger.warning,
+    )
     def select_server(self, rtmp_id: str, server_id: int) -> SelectServerStatus:
         r = self.client.post(
             "en/rtmp",
@@ -264,4 +347,7 @@ class ServerConnector:
             params={"rtmp_id": rtmp_id},
             headers=AJAX_HEADERS,
         )
+        data = r.json()
+        if data["ok"] and data["server"].get("name"):
+            logger.info(f"Selected server {data['server']['name']}")
         return cast(SelectServerStatus, r.json())

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from typing import List, Optional
 
 import attr
@@ -172,7 +171,7 @@ class Device:
             audio=audio,
         )
         if not to_bool(r["ok"]):
-            logging.error(r["msg"])
+            logger.error(r["msg"])
             return None
         o = r["outputs"][0]
 

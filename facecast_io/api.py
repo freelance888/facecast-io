@@ -1,15 +1,11 @@
 from __future__ import absolute_import
 
 import functools
-import logging
-from time import sleep
 from typing import List, Optional, Literal, TypedDict, cast
 
 import httpx
-import urllib3
 
-urllib3.disable_warnings()
-
+from .logger_setup import logger
 from .models import Device
 from .core.server_connector import (
     ServerConnector,
@@ -90,7 +86,6 @@ class FacecastAPI:
     @auth_required
     def create_new_device(self, name: str, server_id: SERVER_LIST) -> Device:
         if self.server_connector.create_device(name):
-            sleep(5)
             device = self.get_device(name, update=True)
             if device is None:
                 raise APIError("Device didn't created")
@@ -118,8 +113,7 @@ class FacecastAPI:
                 server_url=stream["server_url"],
                 shared_key=stream["shared_key"],
             )
-            logging.info(f"{device.name} {output}")
-            sleep(3)
+            logger.info(f"{device.name} {output}")
         return cast(Device, device)
 
     @auth_required
@@ -136,13 +130,13 @@ class FacecastAPI:
     def start_outputs(self):
         for d in self.get_devices():
             d.start_outputs()
-            logging.info(f"Started for device {d.name}")
+            logger.info(f"Started for device {d.name}")
 
     @auth_required
     def stop_outputs(self):
         for d in self.get_devices():
             d.stop_outputs()
-            logging.info(f"Stopped for device {d.name}")
+            logger.info(f"Stopped for device {d.name}")
 
     def get_devices_input(self):
         return [

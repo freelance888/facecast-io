@@ -16,6 +16,7 @@ class DeviceInfo(TypedDict):
 
 
 class DeviceInput(TypedDict):
+    rtmp_id: str
     server_url: str
     shared_key: str
 
