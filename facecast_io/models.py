@@ -6,8 +6,8 @@ from typing import List, Optional
 import attr
 from attr import dataclass
 
-from server_connector import ServerConnector
-from utils import to_bool
+from .server_connector import ServerConnector
+from .utils import to_bool
 
 
 @dataclass
@@ -90,7 +90,7 @@ class DeviceOutput:
         return self.device.server_connector.stop_output(self.id)
 
     def delete(self):
-        return self.device.server_connector.delete_output(self.id)
+        return self.device.server_connector.delete_output(self.device.rtmp_id, self.id)
 
 
 @dataclass

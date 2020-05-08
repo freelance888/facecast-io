@@ -57,7 +57,7 @@ def test_create_delete_output(server_connector, rtmp_id):
     assert result["ok"]
     assert len(result["outputs"]) == 1
     output = result["outputs"][0]
-    server_connector.delete_output(output["id"])
+    server_connector.delete_output(rtmp_id, output["id"])
     outputs = server_connector.get_outputs(rtmp_id)
     assert len(outputs) == 0
 

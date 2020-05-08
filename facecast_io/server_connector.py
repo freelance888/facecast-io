@@ -190,10 +190,15 @@ class ServerConnector:
         )
         return r.json()
 
-    def delete_output(self, oid: str) -> Dict:
+    def delete_output(self, rtmp_id: str, oid: str) -> Dict:
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
-            data={"cmd": "delete", "sign": self.form_sign, "oid": oid},
+            data={
+                "cmd": "delete",
+                "sign": self.form_sign,
+                "oid": oid,
+                "rtmp_id": rtmp_id,
+            },
             headers=AJAX_HEADERS,
         )
         return r.json()
