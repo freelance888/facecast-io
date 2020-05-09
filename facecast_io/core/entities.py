@@ -1,4 +1,4 @@
-from typing import TypedDict, Literal, List, Dict, Union
+from typing import TypedDict, Literal, List
 
 
 class DeviceSimple(TypedDict):
