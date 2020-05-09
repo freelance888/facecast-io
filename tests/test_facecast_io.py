@@ -8,7 +8,5 @@ def test_version():
 
 
 def test_facecast_api():
-    api = FacecastAPI(
-        auth=(os.environ["FACECAST_USERNAME"], os.environ["FACECAST_PASSWORD"])
-    )
+    api = FacecastAPI(os.environ["FACECAST_USERNAME"], os.environ["FACECAST_PASSWORD"])
     api.get_devices()

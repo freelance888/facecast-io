@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 import functools
-from typing import List, Optional, Literal, TypedDict, cast
+from typing import List, Optional, Literal, TypedDict, cast, Tuple
 
 import httpx
 
@@ -35,13 +35,13 @@ class Stream(TypedDict):
 
 
 class FacecastAPI:
-    def __init__(self, auth: Optional[tuple] = None):
+    def __init__(self, username: str = None, password: str = None):
         self.client = httpx.Client(
             base_url=BASE_URL, verify=False, headers=BASE_HEADERS,
         )
         self.server_connector = ServerConnector(self.client)
-        if auth:
-            self.do_auth(auth[0], auth[1])
+        if username and password:
+            self.do_auth(username, password)
 
     @property
     def is_authorized(self):
