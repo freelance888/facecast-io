@@ -3,7 +3,7 @@ name: Facecast IO API
 on: [push]
 
 jobs:
-  build:
+  run_tests:
 
     runs-on: ubuntu-latest
 
@@ -12,7 +12,7 @@ jobs:
       - name: Set up Python 3.8
         uses: actions/setup-python@v1
         with:
-          python-version: 3.8
+          python-version: 3.6
       - name: Install dependencies
         run: |
           python -m pip install poetry
