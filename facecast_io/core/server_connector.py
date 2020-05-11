@@ -2,7 +2,13 @@ import json
 import re
 from copy import copy
 from json import JSONDecodeError
-from typing import List, Literal, cast, Union
+
+from typing import List, cast, Union
+
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
 
 import yarl
 from httpx import Client

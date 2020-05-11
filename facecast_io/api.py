@@ -1,10 +1,11 @@
 from __future__ import absolute_import
 
-from typing import List, Optional, TypedDict, cast
+from typing import List, Optional, cast
 
 import httpx
 from retry.api import retry_call
 
+from .core.entities import Stream
 from .utils import auth_required
 from .logger_setup import logger
 from .models import Device
@@ -14,12 +15,6 @@ from .core.server_connector import (
     BASE_HEADERS,
 )
 from .core.errors import DeviceNotFound, FacecastAPIError
-
-
-class Stream(TypedDict):
-    name: str
-    server_url: str
-    shared_key: str
 
 
 class FacecastAPI:
