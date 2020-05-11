@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (2020-05-11)
+## v0.3.0 (2020-05-11)
 
 #### New Features
 
