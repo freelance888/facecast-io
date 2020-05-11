@@ -3,7 +3,7 @@ from __future__ import absolute_import
 from typing import List, Optional, cast
 
 import httpx
-from retry.api import retry_call
+from retry.api import retry_call  # type: ignore
 
 from .core.entities import Stream
 from .utils import auth_required
