@@ -1,6 +1,9 @@
-name: Facecast IO API
+name: Facecast IO API test and release
 
-on: [push]
+on:
+  push:
+    tags:
+      - 'v[0].[0-9]+.[0-9]+'
 
 jobs:
   run_tests:
@@ -29,3 +32,6 @@ jobs:
           FACECAST_PASSWORD: ${{ secrets.FACECAST_PASSWORD }}
         run: |
           poetry run pytest
+      - name: Publish package
+        run: |
+          poetry publish --build -u __token__ -p ${{ secrets.PYPI_TOKEN }}
