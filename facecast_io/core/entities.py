@@ -1,4 +1,9 @@
-from typing import TypedDict, Literal, List
+from typing import List
+
+try:
+    from typing import TypedDict, Literal
+except ImportError:
+    from typing_extensions import TypedDict, Literal
 
 
 class DeviceSimple(TypedDict):
@@ -132,3 +137,9 @@ class OutputStatus(TypedDict):
 class OutputStatusStart(OutputStatus):
     ok: Literal[0, 1]
     msg: str
+
+
+class Stream(TypedDict):
+    name: str
+    server_url: str
+    shared_key: str
