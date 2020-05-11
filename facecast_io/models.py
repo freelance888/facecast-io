@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import List, Optional, Union
+from typing import List, Optional, Union, cast
 
 import attr
 from attr import dataclass
 
-from .core.entities import SelectServerStatus
+from .core.entities import SelectServerStatus, SelectServer
 from .logger_setup import logger
 from .core.server_connector import ServerConnector
 from .utils import to_bool
@@ -107,7 +107,7 @@ class Device:
     outputs: List[DeviceOutput] = attr.attrib(factory=list)
     input: Optional[DeviceInput] = None
     status: Optional[DeviceStatus] = None
-    available_servers: Optional = None
+    available_servers: Optional[List[SelectServer]] = None
 
     def _update_device_info(self):
         device_data = self.server_connector.get_device(self.rtmp_id)
@@ -218,15 +218,23 @@ class Device:
 
     def select_server(self, server_id: Union[int, str]) -> SelectServerStatus:
         self._update_available_servers()
-        if str(server_id) not in [s["id"] for s in self.available_servers]:
+        if self.available_servers and str(server_id) not in [
+            s["id"] for s in self.available_servers
+        ]:
             raise Exception("Not allowed server_id")
-        return self.server_connector.select_server(self.rtmp_id, server_id)
+        return cast(
+            SelectServerStatus,
+            self.server_connector.select_server(self.rtmp_id, server_id),
+        )
 
     def select_fastest_server(self) -> Optional[SelectServerStatus]:
         self._update_available_servers()
         if not self.available_servers:
             logger.warning("Failed to select server")
-            return
-        return self.server_connector.select_server(
-            self.rtmp_id, self.available_servers[0]["id"]
+            return None
+        return cast(
+            SelectServerStatus,
+            self.server_connector.select_server(
+                self.rtmp_id, self.available_servers[0]["id"]
+            ),
         )

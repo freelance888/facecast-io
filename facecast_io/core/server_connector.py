@@ -3,17 +3,17 @@ import re
 from copy import copy
 from json import JSONDecodeError
 
-from typing import List, cast, Union
+from typing import List, cast, Union, Dict
 
 try:
     from typing import Literal
 except ImportError:
-    from typing_extensions import Literal
+    from typing_extensions import Literal  # type:ignore
 
 import yarl
 from httpx import Client
 from pyquery import PyQuery as pq  # type:ignore
-from retry import retry
+from retry import retry  # type: ignore
 
 
 from facecast_io.logger_setup import logger
@@ -130,7 +130,7 @@ class ServerConnector:
             params={"rtmp_id": rtmp_id},
             headers=AJAX_HEADERS,
         )
-        if r.url.path == "/en/main":
+        if r.url and r.url.path == "/en/main":
             raise DeviceNotFound(f"{rtmp_id} isn't available")
         data = r.json()
         logger.debug(f"Got device: {data}")
@@ -148,7 +148,7 @@ class ServerConnector:
             "en/main_add/ajaj",
             data={"cmd": "add_rtmp", "sbin": 0, "sign": self.form_sign, "title": name},
         )
-        data = r.json()
+        data = cast(Dict, r.json())
         if not data.get("ok"):
             raise DeviceNotCreated(f"{name} wasn't created")
 
@@ -368,7 +368,7 @@ class ServerConnector:
             params={"rtmp_id": rtmp_id},
             headers=AJAX_HEADERS,
         )
-        data = r.json()
+        data = cast(SelectServerStatus, r.json())
         if data["ok"] and data["server"].get("name"):
             logger.info(f"Selected server {data['server']['name']}")
-        return cast(SelectServerStatus, r.json())
+        return data
