@@ -1,10 +1,11 @@
 from __future__ import absolute_import
 
-import functools
-from typing import List, Optional, Literal, TypedDict, cast, Tuple
+from typing import List, Optional, TypedDict, cast
 
 import httpx
+from retry.api import retry_call
 
+from .utils import auth_required
 from .logger_setup import logger
 from .models import Device
 from .core.server_connector import (
@@ -12,20 +13,7 @@ from .core.server_connector import (
     BASE_URL,
     BASE_HEADERS,
 )
-
-
-class APIError(Exception):
-    ...
-
-
-def auth_required(func):
-    @functools.wraps(func)
-    def wrapper(self, *args, **kwargs):
-        if not self.is_authorized:
-            raise APIError("Need to authorize first")
-        return func(self, *args, **kwargs)
-
-    return wrapper
+from .core.errors import DeviceNotFound, FacecastAPIError
 
 
 class Stream(TypedDict):
@@ -75,20 +63,25 @@ class FacecastAPI:
     @auth_required
     def create_new_device(self, name: str) -> Device:
         if self.server_connector.create_device(name):
-            device = self.get_device(name, update=True)
-            if device is None:
-                raise APIError("Device didn't created")
+            device = retry_call(
+                self.get_device,
+                fargs=[name],
+                fkwargs=dict(update=True),
+                exceptions=DeviceNotFound,
+                tries=3,
+                delay=4,
+            )
             result = device.select_fastest_server()
             device.input.shared_key = result["sharedkey"]
             return cast(Device, device)
-        raise APIError("Some error happened during creation")
+        raise FacecastAPIError("Some error happened during creation")
 
     @auth_required
     def get_or_create_device(self, name: str) -> Device:
-        device = self.get_device(name, update=True)
-        if device:
-            return cast(Device, device)
-        return cast(Device, self.create_new_device(name))
+        try:
+            return cast(Device, self.get_device(name, update=True))
+        except DeviceNotFound:
+            return cast(Device, self.create_new_device(name))
 
     @auth_required
     def create_device_and_outputs(self, name, streams_data: List[Stream]) -> Device:
@@ -111,7 +104,7 @@ class FacecastAPI:
             if update:
                 device.update()
             return cast(Device, device)
-        return None
+        raise DeviceNotFound(f"{name}")
 
     @auth_required
     def start_outputs(self):

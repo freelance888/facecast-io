@@ -2,7 +2,7 @@ import json
 import re
 from copy import copy
 from json import JSONDecodeError
-from typing import Dict, List, Literal, cast, Union
+from typing import List, Literal, cast, Union
 
 import yarl
 from httpx import Client
@@ -23,6 +23,7 @@ from .entities import (
     DeviceStatusFull,
     SelectServer,
 )
+from .errors import AuthError, DeviceNotFound, DeviceNotCreated
 
 BASE_URL = "https://b1.facecast.io/"
 BASE_HEADERS = {
@@ -38,19 +39,6 @@ AJAX_HEADERS.update(
         "x-requested-with": "XMLHttpRequest",
     }
 )
-
-
-class FacecastAPIError(Exception):
-    ...
-
-
-class AuthError(FacecastAPIError):
-    ...
-
-
-class DeviceNotFound(FacecastAPIError):
-    ...
-
 
 RETRY_TRIES = 3
 RETRY_DELAY = 5
@@ -93,7 +81,7 @@ class ServerConnector:
         r = self.client.post(
             "en/login",
             params={"mode": "ajaj"},
-            data={"login": username, "pass": password, "signature": signature,},
+            data={"login": username, "pass": password, "signature": signature},
             headers=AJAX_HEADERS,
         )
         if r.status_code == 200 and r.json().get("ok"):  # type: ignore
@@ -143,7 +131,7 @@ class ServerConnector:
         return cast(DeviceInfo, data)
 
     @retry(
-        JSONDecodeError,
+        (JSONDecodeError, DeviceNotCreated),
         tries=RETRY_TRIES,
         delay=RETRY_DELAY,
         jitter=RETRY_JITTER,
@@ -154,6 +142,10 @@ class ServerConnector:
             "en/main_add/ajaj",
             data={"cmd": "add_rtmp", "sbin": 0, "sign": self.form_sign, "title": name},
         )
+        data = r.json()
+        if not data.get("ok"):
+            raise DeviceNotCreated(f"{name} wasn't created")
+
         if r.status_code == 200:
             logger.info(f"Device {name} was created")
             return True
