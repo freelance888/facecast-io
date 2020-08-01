@@ -25,6 +25,7 @@ class FacecastAPI:
         self.server_connector = ServerConnector(self.client)
         if username and password:
             self.do_auth(username, password)
+        self._devices = []
 
     @property
     def is_authorized(self):
@@ -35,7 +36,8 @@ class FacecastAPI:
 
     @auth_required
     def get_devices(self, *, update=False) -> List[Device]:
-        devices = []
+        if self._devices and not update:
+            return self._devices
         for d in self.server_connector.get_devices():
             device = Device(
                 server_connector=self.server_connector,
@@ -44,8 +46,8 @@ class FacecastAPI:
             )
             if update:
                 device.update()
-            devices.append(device)
-        return devices
+            self._devices.append(device)
+        return self._devices
 
     @auth_required
     def delete_device(self, name):
