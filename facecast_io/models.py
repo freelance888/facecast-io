@@ -197,21 +197,25 @@ class Device:
         return do
 
     def start_outputs(self):
+        logger.info(f"start_outputs: {self.name}")
         for o in self.outputs:
-            o.start()
+            logger.debug(o.start())
         return True
 
     def stop_outputs(self):
+        logger.info(f"stop_outputs: {self.name}")
         for o in self.outputs:
-            o.stop()
+            logger.debug(o.stop())
         return True
 
     def delete_outputs(self):
+        logger.info(f"delete_outputs: {self.name}")
         for o in self.outputs:
-            o.delete()
+            logger.debug(o.delete())
         return True
 
     def delete(self):
+        logger.info(f"delete_device: {self.name}")
         self.delete_outputs()
         self.server_connector.delete_device(self.rtmp_id)
         return True
