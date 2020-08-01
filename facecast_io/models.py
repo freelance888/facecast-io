@@ -111,10 +111,10 @@ class Device:
 
     def _update_device_info(self):
         device_data = self.server_connector.get_device(self.rtmp_id)
-        self.online = device_data["online"]
-        self.type = device_data["type"]
-        self.lang = device_data["lang"]
-        self.updates = device_data["updates"]
+        self.online = device_data.online
+        self.type = device_data.type
+        self.lang = device_data.lang
+        self.updates = device_data.updates
 
     def _update_device_status(self):
         status = self.server_connector.get_status(self.rtmp_id).get("get_status")
@@ -138,11 +138,11 @@ class Device:
         for o in device_outputs:
             do = DeviceOutput(
                 device=self,
-                title=o["descr"],
-                enabled=bool(o["enabled"]),
-                type=o["type"],
-                id=o["id"],
-                cloud=o["cloud"],
+                title=o.descr,
+                enabled=bool(o.enabled),
+                type=o.type,
+                id=o.id,
+                cloud=o.cloud,
             )
             do.update()
             self.outputs.append(do)
@@ -156,8 +156,8 @@ class Device:
         device_input = self.server_connector.get_input_params(self.rtmp_id)
         di = DeviceInput(
             device=self,
-            server_url=device_input["server_url"],
-            shared_key=device_input["shared_key"],
+            server_url=device_input.server_url,
+            shared_key=device_input.shared_key,
         )
         di.update()
         self.input = di
@@ -179,18 +179,18 @@ class Device:
             title=name,
             audio=audio,
         )
-        if not to_bool(r["ok"]):
-            logger.error(r["msg"])
+        if not to_bool(r.ok):
+            logger.error(r.msg)
             return None
-        o = r["outputs"][0]
+        o = r.outputs[0]
 
         do = DeviceOutput(
             device=self,
-            title=o["descr"],
-            enabled=bool(o["enabled"]),
-            type=o["type"],
-            id=o["id"],
-            cloud=o["cloud"],
+            title=o.descr,
+            enabled=bool(o.enabled),
+            type=o.type,
+            id=o.id,
+            cloud=o.cloud,
         )
         do.update()
         self.outputs.append(do)
@@ -223,7 +223,7 @@ class Device:
     def select_server(self, server_id: Union[int, str]) -> SelectServerStatus:
         self._update_available_servers()
         if self.available_servers and str(server_id) not in [
-            s["id"] for s in self.available_servers
+            s.id for s in self.available_servers
         ]:
             raise Exception("Not allowed server_id")
         return cast(
@@ -239,6 +239,6 @@ class Device:
         return cast(
             SelectServerStatus,
             self.server_connector.select_server(
-                self.rtmp_id, self.available_servers[0]["id"]
+                self.rtmp_id, self.available_servers[0].id
             ),
         )

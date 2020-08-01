@@ -1,17 +1,19 @@
-from typing import List
+from typing import List, Optional, Generic, TypeVar
+
+from pydantic import BaseModel, Field
 
 try:
-    from typing import TypedDict, Literal
+    from typing import Literal
 except ImportError:
-    from typing_extensions import TypedDict, Literal  # type: ignore
+    from typing_extensions import Literal  # type: ignore
 
 
-class DeviceSimple(TypedDict):
+class DeviceSimple(BaseModel):
     rtmp_id: str
     name: str
 
 
-class DeviceInfo(TypedDict):
+class DeviceInfo(BaseModel):
     rtmp_id: str
     online: bool
     type: Literal["rtmp_source"]
@@ -20,23 +22,32 @@ class DeviceInfo(TypedDict):
     form_sign: str
 
 
-class DeviceInput(TypedDict):
+class DeviceInput(BaseModel):
     rtmp_id: str
     server_url: str
     shared_key: str
 
 
-class DeviceInputStatus(TypedDict, total=False):
-    ok: bool
+class DeviceServerSignal(BaseModel):
     msg: str
-    resolution: str
-    fps: str
-    response: bool
-    status: str
+    ok: bool
+    resolution: Optional[str]
+    fps: Optional[bool]
+    response: Optional[bool]
+    status: Optional[str]
+
+    @property
+    def is_connected(self):
+        return self.fps and self.resolution
+
+
+class DeviceInputStatus(BaseModel):
+    main: DeviceServerSignal
+    backup: DeviceServerSignal
     time: float
 
 
-class InputDeviceStatusSClient(TypedDict, total=False):
+class InputDeviceStatusSClient(BaseModel):
     id: str
     address: str
     time: str
@@ -48,14 +59,14 @@ class InputDeviceStatusSClient(TypedDict, total=False):
     active: List
 
 
-class InputDeviceMetaAudio(TypedDict, total=False):
+class InputDeviceMetaAudio(BaseModel):
     codec: str
     profile: str
     channels: str
     sample_rate: str
 
 
-class InputDeviceMetaVideo(TypedDict, total=False):
+class InputDeviceMetaVideo(BaseModel):
     width: str
     height: str
     frame_rate: str
@@ -65,12 +76,12 @@ class InputDeviceMetaVideo(TypedDict, total=False):
     level: str
 
 
-class InputDeviceMeta(TypedDict):
+class InputDeviceMeta(BaseModel):
     video: InputDeviceMetaVideo
     audio: InputDeviceMetaAudio
 
 
-class InputDeviceStatusS(TypedDict):
+class InputDeviceStatusS(BaseModel):
     name: str
     time: str
     bw_in: str
@@ -86,25 +97,33 @@ class InputDeviceStatusS(TypedDict):
     active: List
 
 
-class DeviceStatus(TypedDict):
+class BackupServer(BaseModel):
+    selected: bool
+    server_id: str
+    server_name: str
+    input_signal: bool
+
+
+class DeviceStatus(BaseModel):
     ok: Literal[0, 1]
     server: str
     server_id: str
     is_online: Literal[0, 1]
     connected: Literal["0", "1"]
-    s: InputDeviceStatusS
+    backup_server: BackupServer
+    s: Optional[InputDeviceStatusS]
     input_url: str
     sharedkey: str
     ping: Literal[0, 1]
     time: float
 
 
-class DeviceStatusFull(TypedDict, total=False):
+class DeviceStatusFull(BaseModel):
     get_status: DeviceStatus
-    input_status: DeviceInputStatus
+    input_status: Optional[DeviceInputStatus]
 
 
-class DeviceOutput(TypedDict):
+class DeviceOutput(BaseModel):
     descr: str
     enabled: int
     type: Literal["rtmp_rtmp"]
@@ -113,24 +132,44 @@ class DeviceOutput(TypedDict):
     server_url: str
 
 
-class DeviceOutputStatus(TypedDict, total=False):
+ListType = TypeVar("ListType")
+
+
+class GenericList(Generic[ListType], BaseModel):
+    __root__: List[ListType]
+
+    def __iter__(self) -> ListType:
+        yield from self.__root__
+
+    def __getitem__(self, item) -> ListType:
+        return self.__root__[item]
+
+    def __len__(self) -> int:
+        return len(self.__root__)
+
+
+class DeviceOutputs(GenericList[DeviceOutput]):
+    ...
+
+
+class DeviceOutputStatus(BaseModel):
     ok: bool
-    msg: str
+    msg: Optional[str]
     outputs: List[DeviceOutput]
 
 
-class SelectServer(TypedDict):
+class SelectServer(BaseModel):
     id: str
     name: str
 
 
-class SelectServerStatus(TypedDict):
+class SelectServerStatus(BaseModel):
     ok: bool
     server: SelectServer
     sharedkey: str
 
 
-class OutputStatus(TypedDict):
+class OutputStatus(BaseModel):
     enabled: Literal[0, 1]
 
 
@@ -139,7 +178,7 @@ class OutputStatusStart(OutputStatus):
     msg: str
 
 
-class Stream(TypedDict):
+class Stream(BaseModel):
     name: str
     server_url: str
     shared_key: str

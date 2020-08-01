@@ -47,9 +47,7 @@ class FacecastAPI:
             return self._devices
         for d in self.server_connector.get_devices():
             device = Device(
-                server_connector=self.server_connector,
-                name=d["name"],
-                rtmp_id=d["rtmp_id"],
+                server_connector=self.server_connector, name=d.name, rtmp_id=d.rtmp_id,
             )
             if update:
                 device.update()
@@ -61,7 +59,7 @@ class FacecastAPI:
         dev = self.get_device(name)
         outputs = self.server_connector.get_outputs(dev.rtmp_id)
         for o in outputs:
-            self.server_connector.delete_output(dev.rtmp_id, o["id"])
+            self.server_connector.delete_output(dev.rtmp_id, o.id)
         self.server_connector.delete_device(dev.rtmp_id)
 
     @auth_required
@@ -76,7 +74,7 @@ class FacecastAPI:
                 delay=4,
             )
             result = device.select_fastest_server()
-            device.input.shared_key = result["sharedkey"]
+            device.input.shared_key = result.sharedkey
             return cast(Device, device)
         raise FacecastAPIError("Some error happened during creation")
 
@@ -93,9 +91,9 @@ class FacecastAPI:
         device.delete_outputs()
         for stream in streams_data:
             output = device.create_output(
-                name=stream["name"],
-                server_url=stream["server_url"],
-                shared_key=stream["shared_key"],
+                name=stream.name,
+                server_url=stream.server_url,
+                shared_key=stream.shared_key,
             )
             logger.info(f"{device.name} {output}")
         return cast(Device, device)
