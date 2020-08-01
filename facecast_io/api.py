@@ -11,16 +11,23 @@ from .logger_setup import logger
 from .models import Device
 from .core.server_connector import (
     ServerConnector,
-    BASE_URL,
     BASE_HEADERS,
+    POSSIBLE_BASE_URLS,
 )
 from .core.errors import DeviceNotFound, FacecastAPIError
+
+
+def find_available_server():
+    for url in POSSIBLE_BASE_URLS:
+        r = httpx.get(url)
+        if r.status_code in [200, 201]:
+            return url
 
 
 class FacecastAPI:
     def __init__(self, username: str = None, password: str = None):
         self.client = httpx.Client(
-            base_url=BASE_URL, verify=False, headers=BASE_HEADERS,
+            base_url=find_available_server(), verify=False, headers=BASE_HEADERS,
         )
         self.server_connector = ServerConnector(self.client)
         if username and password:

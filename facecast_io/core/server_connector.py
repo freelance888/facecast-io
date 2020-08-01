@@ -32,6 +32,12 @@ from .entities import (
 from .errors import AuthError, DeviceNotFound, DeviceNotCreated
 
 BASE_URL = "https://b1.facecast.io/"
+POSSIBLE_BASE_URLS = [
+    "https://b1.facecast.io/",
+    "https://b2.facecast.io/",
+    "https://b3.facecast.io/",
+]
+
 BASE_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:28.0) Gecko/20100101 Firefox/28.0",
     "Accept-Encoding": "gzip, deflate, br",
