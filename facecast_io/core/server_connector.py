@@ -143,10 +143,16 @@ class ServerConnector:
         jitter=RETRY_JITTER,
         logger=logger,
     )
-    def create_device(self, name: str) -> bool:
+    def create_device(self, name: str, stream_type: Literal["rtmp"] = "rtmp") -> bool:
         r = self.client.post(
             "en/main_add/ajaj",
-            data={"cmd": "add_rtmp", "sbin": 0, "sign": self.form_sign, "title": name},
+            data={
+                "cmd": "add_restreamer",
+                "sbin": 0,
+                "sign": self.form_sign,
+                "type": stream_type,
+                "title": name,
+            },
         )
         data = cast(Dict, r.json())
         if not data.get("ok"):
@@ -249,6 +255,7 @@ class ServerConnector:
                 "shared_key": shared_key,
                 "title": title,
                 "audio": audio,
+                "server": "auto",
             },
             headers=AJAX_HEADERS,
         )
@@ -280,6 +287,7 @@ class ServerConnector:
                 "descr": title,
                 "type": stream_type,
                 "audio": audio,
+                "server": "auto",
             },
             headers=AJAX_HEADERS,
         )
