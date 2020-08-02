@@ -58,6 +58,5 @@ def test_create_delete_output(server_connector, rtmp_id):
 
 def test_server_connector(server_connector, rtmp_id):
     device = server_connector.get_device(rtmp_id)
-    input = server_connector.get_input_params(rtmp_id)
     status = server_connector.get_status(rtmp_id)
     output = server_connector.get_outputs(rtmp_id)

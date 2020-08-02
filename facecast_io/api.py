@@ -1,33 +1,38 @@
 from __future__ import absolute_import
 
+import os
 from typing import List, Optional, cast
 
 import httpx
 from retry.api import retry_call  # type: ignore
 
-from .core.entities import Stream
+from .entities import Stream
 from .utils import auth_required
 from .logger_setup import logger
 from .models import Device
-from .core.server_connector import (
+from .server_connector import (
     ServerConnector,
     BASE_HEADERS,
     POSSIBLE_BASE_URLS,
 )
-from .core.errors import DeviceNotFound, FacecastAPIError
+from .errors import DeviceNotFound, FacecastAPIError
 
 
 def find_available_server():
-    for url in POSSIBLE_BASE_URLS:
-        r = httpx.get(url)
-        if r.status_code in [200, 201]:
-            return url
+    with httpx.Client(proxies=os.getenv("HTTP_PROXY"), verify=False) as client:
+        for url in POSSIBLE_BASE_URLS:
+            r = client.get(url)
+            if r.status_code in [200, 201]:
+                return url
 
 
 class FacecastAPI:
     def __init__(self, username: str = None, password: str = None):
         self.client = httpx.Client(
-            base_url=find_available_server(), verify=False, headers=BASE_HEADERS,
+            proxies=os.getenv("HTTP_PROXY"),
+            base_url=find_available_server(),
+            verify=False,
+            headers=BASE_HEADERS,
         )
         self.server_connector = ServerConnector(self.client)
         if username and password:
@@ -73,9 +78,9 @@ class FacecastAPI:
                 tries=3,
                 delay=4,
             )
-            result = device.select_fastest_server()
-            device.input.shared_key = result.sharedkey
-            return cast(Device, device)
+            device.update()
+            device.select_fastest_server()
+            return device
         raise FacecastAPIError("Some error happened during creation")
 
     @auth_required
@@ -100,7 +105,7 @@ class FacecastAPI:
 
     @auth_required
     def get_device(self, name, update=False) -> Optional[Device]:
-        devices = [d for d in self.get_devices() if d.name == name]
+        devices = [d for d in self.get_devices(update=True) if d.name == name]
         if devices:
             device = devices[-1]
             if update:
@@ -119,13 +124,3 @@ class FacecastAPI:
         for d in self.get_devices():
             d.stop_outputs()
             logger.info(f"Stopped for device {d.name}")
-
-    def get_devices_input(self):
-        return [
-            Stream(
-                name=d.name,
-                server_url=d.input.server_url,
-                shared_key=d.input.shared_key,
-            )
-            for d in self.get_devices(update=True)
-        ]

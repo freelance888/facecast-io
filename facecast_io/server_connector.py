@@ -1,16 +1,16 @@
-import json
 import re
 from copy import copy
 from json import JSONDecodeError
 
-from typing import List, cast, Union, Dict
+from typing import Union
+
+import httpx
 
 try:
     from typing import Literal
 except ImportError:
     from typing_extensions import Literal  # type:ignore
 
-import yarl
 from httpx import Client
 from pyquery import PyQuery as pq  # type:ignore
 from retry import retry  # type: ignore
@@ -18,19 +18,24 @@ from retry import retry  # type: ignore
 
 from facecast_io.logger_setup import logger
 from .entities import (
-    DeviceSimple,
-    DeviceInput,
+    DeviceOutput,
+    DeviceOutputs,
     DeviceOutputStatus,
-    SelectServerStatus,
     OutputStatus,
     OutputStatusStart,
+    BaseResponse,
+    BaseDevice,
+    BaseDevices,
     DeviceInfo,
-    DeviceOutput,
     DeviceStatusFull,
-    SelectServer,
-    DeviceOutputs,
+    AvailableServers,
 )
-from .errors import AuthError, DeviceNotFound, DeviceNotCreated
+from .errors import (
+    AuthError,
+    DeviceNotFound,
+    DeviceNotCreated,
+    FacecastAPIError,
+)
 
 BASE_URL = "https://b1.facecast.io/"
 POSSIBLE_BASE_URLS = [
@@ -53,9 +58,8 @@ AJAX_HEADERS.update(
     }
 )
 
-RETRY_TRIES = 3
-RETRY_DELAY = 5
-RETRY_JITTER = (2, 7)
+
+RETRY_PARAMS = dict(tries=3, delay=5, jitter=(2, 7), logger=logger)
 
 
 class ServerConnector:
@@ -78,13 +82,11 @@ class ServerConnector:
             return match.group(1)
         raise AuthError("Failed to fetch signature")
 
-    @retry(
-        JSONDecodeError,
-        tries=RETRY_TRIES,
-        delay=RETRY_DELAY,
-        jitter=RETRY_JITTER,
-        logger=logger,
-    )
+    def _check_auth(self):
+        if not self.is_authorized:
+            raise FacecastAPIError("Need to authorize first")
+
+    @retry(httpx.HTTPError, **RETRY_PARAMS)
     def do_auth(self, username: str, password: str) -> bool:
         r = self.client.get("en/main")
         if r.url == "en/main":
@@ -105,7 +107,9 @@ class ServerConnector:
         self.is_authorized = False
         raise AuthError("AuthService error")
 
-    def get_devices(self) -> List[DeviceSimple]:
+    @retry(httpx.HTTPError, **RETRY_PARAMS)
+    def get_devices(self) -> BaseDevices:
+        self._check_auth()
         r = self.client.get("en/main")
         d = pq(r.text)
         devices = d(".sb-streamboxes-main-list a")
@@ -116,21 +120,16 @@ class ServerConnector:
             )
         else:
             logger.info("No devices")
-        return [
-            DeviceSimple(
+        return BaseDevices.parse_obj(
+            BaseDevice(
                 rtmp_id=device.attrib["href"].split("=")[1], name=device_name.text,
             )
             for device, device_name in zip(devices, devices_names)
-        ]
+        )
 
-    @retry(
-        JSONDecodeError,
-        tries=RETRY_TRIES,
-        delay=RETRY_DELAY,
-        jitter=RETRY_JITTER,
-        logger=logger,
-    )
+    @retry(httpx.HTTPError, **RETRY_PARAMS)
     def get_device(self, rtmp_id: str) -> DeviceInfo:
+        self._check_auth()
         r = self.client.post(
             "en/rtmp",
             data={"action": "get_info"},
@@ -143,14 +142,9 @@ class ServerConnector:
         logger.debug(f"Got device: {data}")
         return data
 
-    @retry(
-        (JSONDecodeError, DeviceNotCreated),
-        tries=RETRY_TRIES,
-        delay=RETRY_DELAY,
-        jitter=RETRY_JITTER,
-        logger=logger,
-    )
+    @retry((httpx.HTTPError, DeviceNotCreated), **RETRY_PARAMS)
     def create_device(self, name: str, stream_type: Literal["rtmp"] = "rtmp") -> bool:
+        self._check_auth()
         r = self.client.post(
             "en/main_add/ajaj",
             data={
@@ -161,8 +155,8 @@ class ServerConnector:
                 "title": name,
             },
         )
-        data = cast(Dict, r.json())
-        if not data.get("ok"):
+        data = BaseResponse.parse_raw(r.content)
+        if not data.ok:
             raise DeviceNotCreated(f"{name} wasn't created")
 
         if r.status_code == 200:
@@ -171,7 +165,9 @@ class ServerConnector:
         logger.info(f"Device {name} was not created")
         return False
 
+    @retry(httpx.HTTPError, **RETRY_PARAMS)
     def delete_device(self, rtmp_id: str) -> bool:
+        self._check_auth()
         r = self.client.post(
             "en/rtmp_popup_menu/ajaj",
             data={
@@ -186,18 +182,9 @@ class ServerConnector:
         logger.info(f"Device {rtmp_id} was not deleted")
         return False
 
-    def get_input_params(self, rtmp_id: str) -> DeviceInput:
-        r = self.client.get("en/rtmp", params={"rtmp_id": rtmp_id})
-        d = pq(r.text)
-        server_url = d(".sb-input-input-url").attr["value"]
-        if yarl.URL(server_url).host is None:
-            return self.get_input_params(rtmp_id)
-        shared_key = d(".sb-input-sharedkey").attr["value"]
-        di = DeviceInput(rtmp_id=rtmp_id, server_url=server_url, shared_key=shared_key)
-        logger.debug(f"DeviceInput {di}")
-        return di
-
+    @retry(httpx.HTTPError, **RETRY_PARAMS)
     def get_status(self, rtmp_id: str) -> DeviceStatusFull:
+        self._check_auth()
         r = self.client.post(
             "en/rtmp/ajaj",
             data={
@@ -217,14 +204,9 @@ class ServerConnector:
         logger.debug(f"Got device status: {data}")
         return data
 
-    @retry(
-        JSONDecodeError,
-        tries=RETRY_TRIES,
-        delay=RETRY_DELAY,
-        jitter=RETRY_JITTER,
-        logger=logger,
-    )
+    @retry((httpx.HTTPError, FacecastAPIError), **RETRY_PARAMS)
     def get_outputs(self, rtmp_id: str) -> DeviceOutputs:
+        self._check_auth()
         r = self.client.post(
             "en/rtmp_outputs/ajaj",
             data={"cmd": "getlist", "rtmp_id": rtmp_id, "sign": self.form_sign},
@@ -235,13 +217,7 @@ class ServerConnector:
         logger.debug(f"Got device outputs: {data}")
         return data
 
-    @retry(
-        JSONDecodeError,
-        tries=RETRY_TRIES,
-        delay=RETRY_DELAY,
-        jitter=RETRY_JITTER,
-        logger=logger,
-    )
+    @retry((httpx.HTTPError, FacecastAPIError), **RETRY_PARAMS)
     def update_output(
         self,
         rtmp_id: str,
@@ -251,6 +227,7 @@ class ServerConnector:
         title: str,
         audio: int = 0,
     ) -> DeviceOutput:
+        self._check_auth()
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
             data={
@@ -270,9 +247,7 @@ class ServerConnector:
         logger.debug(f"Updated device output: {data}")
         return data
 
-    @retry(
-        JSONDecodeError, tries=RETRY_TRIES + 5, delay=RETRY_DELAY, jitter=RETRY_JITTER
-    )
+    @retry((httpx.HTTPError, FacecastAPIError), **RETRY_PARAMS)
     def create_output(
         self,
         rtmp_id: str,
@@ -282,6 +257,7 @@ class ServerConnector:
         audio: int = 0,
         stream_type: Literal["rtmp", "mpegts"] = "rtmp",
     ) -> DeviceOutputStatus:
+        self._check_auth()
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
             data={
@@ -304,14 +280,9 @@ class ServerConnector:
         logger.debug(f"Updated device output: {data}")
         return data
 
-    @retry(
-        JSONDecodeError,
-        tries=RETRY_TRIES,
-        delay=RETRY_DELAY,
-        jitter=RETRY_JITTER,
-        logger=logger,
-    )
+    @retry((httpx.HTTPError, FacecastAPIError), **RETRY_PARAMS)
     def delete_output(self, rtmp_id: str, oid: str) -> DeviceOutputStatus:
+        self._check_auth()
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
             data={
@@ -326,14 +297,9 @@ class ServerConnector:
         logger.debug(f"Deleted device output: {data}")
         return data
 
-    @retry(
-        JSONDecodeError,
-        tries=RETRY_TRIES,
-        delay=RETRY_DELAY,
-        jitter=RETRY_JITTER,
-        logger=logger,
-    )
+    @retry((httpx.HTTPError, FacecastAPIError), **RETRY_PARAMS)
     def _output_management(self, rtmp_id: str, oid: str, cmd: str):
+        self._check_auth()
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
             data={
@@ -353,33 +319,26 @@ class ServerConnector:
         )
 
     def stop_output(self, rtmp_id: str, oid: str) -> OutputStatus:
-        return OutputStatusStart.parse_raw(
-            self._output_management(rtmp_id, oid, "stop")
-        )
+        return OutputStatus.parse_raw(self._output_management(rtmp_id, oid, "stop"))
 
-    def get_available_servers(self, rtmp_id: str) -> List[SelectServer]:
+    @retry((httpx.HTTPError, FacecastAPIError), **RETRY_PARAMS)
+    def get_available_servers(self, rtmp_id: str) -> AvailableServers:
+        self._check_auth()
         r = self.client.post("en/rtmp_server?mode=", data={"rtmp_id": rtmp_id})
-        match = re.search(r"var servers = (\[.*\]);", r.text)
+        match = re.search(r"var servers = '(\[.*\])';", r.text)
         if match:
-            data = json.loads(match.group(1))
+            data = AvailableServers.parse_raw(match.group(1))
             logger.debug(f"Got next servers list {data}")
-            return [SelectServer(id=d.id, name=d.name) for d in data]
-        raise Exception
+            return data
+        raise FacecastAPIError("Failed to get available servers")
 
-    @retry(
-        JSONDecodeError,
-        tries=RETRY_TRIES,
-        delay=RETRY_DELAY,
-        jitter=RETRY_JITTER,
-        logger=logger,
-    )
-    def select_server(
-        self, rtmp_id: str, server_id: Union[int, str]
-    ) -> SelectServerStatus:
+    @retry((httpx.HTTPError, FacecastAPIError), **RETRY_PARAMS)
+    def select_server(self, rtmp_id: str, server_id: Union[int, str]) -> bool:
+        self._check_auth()
         r = self.client.post(
-            "en/rtmp",
+            "en/rtmp_server/ajaj",
             data={
-                "cmd": "select_server",
+                "cmd": "set_server",
                 "sign": self.form_sign,
                 "rtmp_id": rtmp_id,
                 "server_id": server_id,
@@ -387,7 +346,8 @@ class ServerConnector:
             params={"rtmp_id": rtmp_id},
             headers=AJAX_HEADERS,
         )
-        data = SelectServerStatus.parse_raw(r.content)
-        if data.ok and data.server.name:
-            logger.info(f"Selected server {data.server.name}")
-        return data
+        data = BaseResponse.parse_raw(r.content)
+        if data.ok:
+            logger.info(f"Server {server_id} selected for {rtmp_id}")
+            return True
+        raise FacecastAPIError(f"Failed to select server {rtmp_id} - {data}")
