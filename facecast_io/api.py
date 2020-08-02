@@ -7,7 +7,6 @@ import httpx
 from retry.api import retry_call  # type: ignore
 
 from .entities import Stream
-from .utils import auth_required
 from .logger_setup import logger
 from .models import Device
 from .server_connector import (
@@ -46,7 +45,6 @@ class FacecastAPI:
     def do_auth(self, username, password):
         return self.server_connector.do_auth(username, password)
 
-    @auth_required
     def get_devices(self, *, update=False) -> List[Device]:
         if self._devices and not update:
             return self._devices
@@ -59,7 +57,6 @@ class FacecastAPI:
             self._devices.append(device)
         return self._devices
 
-    @auth_required
     def delete_device(self, name):
         dev = self.get_device(name)
         outputs = self.server_connector.get_outputs(dev.rtmp_id)
@@ -67,7 +64,6 @@ class FacecastAPI:
             self.server_connector.delete_output(dev.rtmp_id, o.id)
         self.server_connector.delete_device(dev.rtmp_id)
 
-    @auth_required
     def create_new_device(self, name: str) -> Device:
         if self.server_connector.create_device(name):
             device = retry_call(
@@ -83,14 +79,12 @@ class FacecastAPI:
             return device
         raise FacecastAPIError("Some error happened during creation")
 
-    @auth_required
     def get_or_create_device(self, name: str) -> Device:
         try:
             return cast(Device, self.get_device(name, update=True))
         except DeviceNotFound:
             return cast(Device, self.create_new_device(name))
 
-    @auth_required
     def create_device_and_outputs(self, name, streams_data: List[Stream]) -> Device:
         device = self.get_or_create_device(name)
         device.delete_outputs()
@@ -103,7 +97,6 @@ class FacecastAPI:
             logger.info(f"{device.name} {output}")
         return cast(Device, device)
 
-    @auth_required
     def get_device(self, name, update=False) -> Optional[Device]:
         devices = [d for d in self.get_devices(update=True) if d.name == name]
         if devices:
@@ -113,13 +106,11 @@ class FacecastAPI:
             return cast(Device, device)
         raise DeviceNotFound(f"{name}")
 
-    @auth_required
     def start_outputs(self):
         for d in self.get_devices():
             d.start_outputs()
             logger.info(f"Started for device {d.name}")
 
-    @auth_required
     def stop_outputs(self):
         for d in self.get_devices():
             d.stop_outputs()
