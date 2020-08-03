@@ -23,7 +23,7 @@ __all__ = [
 
 
 class BaseDevice(BaseModel):
-    rtmp_id: str
+    rtmp_id: int
     name: str
 
 
@@ -32,7 +32,7 @@ class BaseDevices(GenericList[BaseDevice]):
 
 
 class DeviceInfo(BaseModel):
-    rtmp_id: str
+    rtmp_id: int
     online: bool
     type: Literal["rtmp_source"]
     lang: Literal["en", "ru"]
@@ -106,11 +106,15 @@ class SelectServerStatus(BaseResponse):
 
 
 class SelectedServer(BaseModel):
-    id: Optional[str]
+    id: int
     name: Optional[str]
 
 
 class AvailableServers(GenericList[SelectServer]):
+    @property
+    def fastest(self):
+        return self.__root__[0]
+
     def __getitem__(self, item: int) -> SelectServer:
         try:
             return [s for s in self.__root__ if s.id == item][0]

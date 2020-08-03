@@ -68,6 +68,9 @@ class ServerConnector:
         self.is_authorized: bool = False
         self.form_sign = None
 
+    def __repr__(self):
+        return f"ServerConnector<{self.form_sign}>"
+
     def _update_from_sign(self):
         r = self.client.get("en/main")
         match = re.search(r"form_sign: \'(\w+)\'", r.text)
@@ -128,7 +131,7 @@ class ServerConnector:
         )
 
     @retry(httpx.HTTPError, **RETRY_PARAMS)
-    def get_device(self, rtmp_id: str) -> DeviceInfo:
+    def get_device(self, rtmp_id: int) -> DeviceInfo:
         self._check_auth()
         r = self.client.post(
             "en/rtmp",
@@ -166,7 +169,7 @@ class ServerConnector:
         return False
 
     @retry(httpx.HTTPError, **RETRY_PARAMS)
-    def delete_device(self, rtmp_id: str) -> bool:
+    def delete_device(self, rtmp_id: int) -> bool:
         self._check_auth()
         r = self.client.post(
             "en/rtmp_popup_menu/ajaj",
@@ -183,7 +186,7 @@ class ServerConnector:
         return False
 
     @retry(httpx.HTTPError, **RETRY_PARAMS)
-    def get_status(self, rtmp_id: str) -> DeviceStatusFull:
+    def get_status(self, rtmp_id: int) -> DeviceStatusFull:
         self._check_auth()
         r = self.client.post(
             "en/rtmp/ajaj",
@@ -205,7 +208,7 @@ class ServerConnector:
         return data
 
     @retry((httpx.HTTPError, FacecastAPIError), **RETRY_PARAMS)
-    def get_outputs(self, rtmp_id: str) -> DeviceOutputs:
+    def get_outputs(self, rtmp_id: int) -> DeviceOutputs:
         self._check_auth()
         r = self.client.post(
             "en/rtmp_outputs/ajaj",
@@ -250,7 +253,7 @@ class ServerConnector:
     @retry((httpx.HTTPError, FacecastAPIError), **RETRY_PARAMS)
     def create_output(
         self,
-        rtmp_id: str,
+        rtmp_id: int,
         server_url: str,
         shared_key: str,
         title: str,
@@ -281,7 +284,7 @@ class ServerConnector:
         return data
 
     @retry((httpx.HTTPError, FacecastAPIError), **RETRY_PARAMS)
-    def delete_output(self, rtmp_id: str, oid: str) -> DeviceOutputStatus:
+    def delete_output(self, rtmp_id: int, oid: int) -> DeviceOutputStatus:
         self._check_auth()
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
@@ -298,7 +301,7 @@ class ServerConnector:
         return data
 
     @retry((httpx.HTTPError, FacecastAPIError), **RETRY_PARAMS)
-    def _output_management(self, rtmp_id: str, oid: str, cmd: str):
+    def _output_management(self, rtmp_id: int, oid: int, cmd: str):
         self._check_auth()
         r = self.client.post(
             "en/out_rtmp_rtmp/ajaj",
@@ -313,16 +316,16 @@ class ServerConnector:
         )
         return r.content
 
-    def start_output(self, rtmp_id: str, oid: str) -> OutputStatusStart:
+    def start_output(self, rtmp_id: int, oid: int) -> OutputStatusStart:
         return OutputStatusStart.parse_raw(
             self._output_management(rtmp_id, oid, "start")
         )
 
-    def stop_output(self, rtmp_id: str, oid: str) -> OutputStatus:
+    def stop_output(self, rtmp_id: int, oid: int) -> OutputStatus:
         return OutputStatus.parse_raw(self._output_management(rtmp_id, oid, "stop"))
 
     @retry((httpx.HTTPError, FacecastAPIError), **RETRY_PARAMS)
-    def get_available_servers(self, rtmp_id: str) -> AvailableServers:
+    def get_available_servers(self, rtmp_id: int) -> AvailableServers:
         self._check_auth()
         r = self.client.post("en/rtmp_server?mode=", data={"rtmp_id": rtmp_id})
         match = re.search(r"var servers = '(\[.*\])';", r.text)
@@ -333,7 +336,7 @@ class ServerConnector:
         raise FacecastAPIError("Failed to get available servers")
 
     @retry((httpx.HTTPError, FacecastAPIError), **RETRY_PARAMS)
-    def select_server(self, rtmp_id: str, server_id: Union[int, str]) -> bool:
+    def select_server(self, rtmp_id: int, server_id: int) -> bool:
         self._check_auth()
         r = self.client.post(
             "en/rtmp_server/ajaj",

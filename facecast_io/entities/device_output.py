@@ -22,7 +22,7 @@ class DeviceOutput(BaseModel):
     title: str = Field(alias="descr")
     enabled: int
     type: Literal["rtmp_rtmp"]
-    id: str
+    id: int
     cloud: int
     server_url: str
 
