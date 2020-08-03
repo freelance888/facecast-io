@@ -5,6 +5,7 @@ from json import JSONDecodeError
 from typing import Union
 
 import httpx
+from pydantic import ValidationError
 
 try:
     from typing import Literal
@@ -207,7 +208,7 @@ class ServerConnector:
         logger.debug(f"Got device status: {data}")
         return data
 
-    @retry((httpx.HTTPError, FacecastAPIError), **RETRY_PARAMS)
+    @retry((httpx.HTTPError, FacecastAPIError, ValidationError), **RETRY_PARAMS)
     def get_outputs(self, rtmp_id: int) -> DeviceOutputs:
         self._check_auth()
         r = self.client.post(

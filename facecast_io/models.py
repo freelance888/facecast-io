@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional, Sequence, List, Dict
 
 from attr import dataclass
+from retry.api import retry_call
 
 from .errors import FacecastAPIError, DeviceNotFound
 from .entities import (
@@ -19,6 +20,9 @@ from .server_connector import ServerConnector
 class DeviceOutput:
     device: Device
     output: BaseDeviceOutput
+
+    def __str__(self):
+        return f"Output <{self.output.title}>"
 
     def start(self):
         return self.device._server_connector.start_output(
@@ -42,6 +46,9 @@ class DeviceOutputs(Sequence[DeviceOutput]):
         self._server_connector = device._server_connector
         self.rtmp_id = device.rtmp_id
         self._outputs = []
+
+    def __str__(self):
+        return "Outputs <{}>".format("\n".join(str(o) for o in self._outputs))
 
     def __getitem__(self, item) -> Device:
         if isinstance(item, int):
@@ -96,6 +103,9 @@ class Device:
 
     def __repr__(self):
         return f"Device <{self.name} - {self.rtmp_id}>"
+
+    def __str__(self):
+        return f"Device <{self.name}: {self.outputs}>"
 
     @property
     def main_server_url(self) -> str:
@@ -203,6 +213,9 @@ class Devices(Sequence[Device]):
     def __repr__(self):
         return f"Devices <{self._devices}>"
 
+    def __str__(self):
+        return "Devices <{}>".format("\n".join(str(d) for d in self._devices))
+
     def __getitem__(self, item) -> Device:
         if isinstance(item, int):
             compare_by = lambda d, item: d.rtmp_id == item
@@ -229,8 +242,8 @@ class Devices(Sequence[Device]):
             return False
 
     def get_device(self, name: str):
+        self.update()
         device = self[name]
-        device.update()
         return device
 
     def delete_device(self, name: str):
@@ -238,18 +251,26 @@ class Devices(Sequence[Device]):
         outputs = self._server_connector.get_outputs(dev.rtmp_id)
         for o in outputs:
             self._server_connector.delete_output(dev.rtmp_id, o.id)
-        self._server_connector.delete_device(dev.rtmp_id)
-        self.update()
+        if self._server_connector.delete_device(dev.rtmp_id):
+            self._devices.remove(dev)
+            return
+        raise FacecastAPIError(f"Failed to delete `{name}`")
 
     def delete_all(self):
         for d in self._devices:
             d.delete()
-        self.update()
+        self._devices.clear()
 
     def create_device(self, name: str) -> Device:
         if self._server_connector.create_device(name):
-            self.update()
-            return self[name]
+            device = retry_call(
+                self.get_device,
+                fargs=[name],
+                exceptions=DeviceNotFound,
+                tries=3,
+                delay=4,
+            )
+            return device
         raise FacecastAPIError("Some error happened during creation")
 
     def start_outputs(self):
