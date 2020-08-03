@@ -1,9 +1,9 @@
 try:
-    from typing import Literal, Optional
+    from typing import Literal
 except ImportError:
     from typing_extensions import Literal  # type: ignore
 
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
