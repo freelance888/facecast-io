@@ -1,5 +1,41 @@
 # Changelog
 
+## v0.4.0 (2020-08-03)
+
+#### New Features
+
+* add input_params of device
+#### Fixes
+
+* missing import of Optional
+#### Refactorings
+
+* move devices related call from api to special class
+* remove auth_required
+* make entities more clear and reusable
+* use pydantic for input data serialization
+#### Docs
+
+* update README.rst
+#### Others
+
+* improve displaying of Device(s) info
+* add more tests for API
+
+## v0.3.1 (2020-08-01)
+
+#### New Features
+
+* find available facecast server
+#### Fixes
+
+* create device and output updated protocol
+#### Others
+
+* display logs during creation of output ad device
+* cache devices inside `get_devices`
+* update description for PyPi
+
 ## v0.3.0 (2020-05-11)
 
 #### New Features
@@ -10,7 +46,11 @@
 * unify auth variables name
 #### Docs
 
+* update CHANGELOG.md
 * update README.rst
+#### Others
+
+* update GH publishing
 
 ## v0.2.0 (2020-05-08)
 
