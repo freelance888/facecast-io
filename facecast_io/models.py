@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Sequence, List
+from typing import Optional, Sequence, List, Dict
 
 from attr import dataclass
 
@@ -110,6 +110,15 @@ class Device:
     @property
     def shared_key(self):
         return self._status.shared_key
+
+    @property
+    def input_params(self) -> Dict[str, str]:
+        return {
+            "lang_code": self.name,
+            "main_server_url": self.main_server_url,
+            "backup_server_url": self.backup_server_url,
+            "shared_key": self.shared_key,
+        }
 
     def _update_device_status(self):
         self._status = self._server_connector.get_status(self.rtmp_id)
@@ -269,5 +278,6 @@ class Devices(Sequence[Device]):
         for d in self:
             d.update()
 
-    def get_input_params(self):
-        return
+    @property
+    def input_params(self):
+        return [d.input_params for d in self._devices]
