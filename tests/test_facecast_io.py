@@ -37,6 +37,8 @@ def test_device_operations(api, rtmp_id, device_name):
     assert api.devices.get_device(device_name) is api.devices[rtmp_id]
     assert api.devices.get_device(rtmp_id) is api.devices[device_name]
 
+    str(api.devices)
+
     device = api.devices[rtmp_id]
     device.start_outputs()
     device.stop_outputs()
