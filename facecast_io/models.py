@@ -130,6 +130,10 @@ class Device:
             "shared_key": self.shared_key,
         }
 
+    @property
+    def is_online(self) -> bool:
+        return self._status.status.is_online
+
     def _update_device_status(self):
         self._status = self._server_connector.get_status(self.rtmp_id)
 
@@ -214,7 +218,7 @@ class Devices(Sequence[Device]):
         return f"Devices <{self._devices}>"
 
     def __str__(self):
-        return "Devices <{}>".format("\n".join(str(d) for d in self._devices))
+        return f"Devices <{len(self._devices)}>"
 
     def __getitem__(self, item) -> Device:
         if isinstance(item, int):
