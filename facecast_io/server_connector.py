@@ -106,7 +106,7 @@ class ServerConnector:
         if r.status_code == 200 and r.json().get("ok"):  # type: ignore
             self.is_authorized = True
             self._update_from_sign()
-            logger.info("Auth successful")
+            logger.debug("Auth successful")
             return True
         self.is_authorized = False
         raise AuthError("AuthService error")
@@ -119,11 +119,11 @@ class ServerConnector:
         devices = d(".sb-streamboxes-main-list a")
         devices_names = devices.find(".sb-streambox-item-name")
         if devices_names:
-            logger.info(
+            logger.debug(
                 f"Got devices with following names: {[d.text for d in devices_names]}"
             )
         else:
-            logger.info("No devices")
+            logger.debug("No devices")
         return BaseDevices.parse_obj(
             BaseDevice(
                 rtmp_id=device.attrib["href"].split("=")[1], name=device_name.text,
@@ -164,9 +164,9 @@ class ServerConnector:
             raise DeviceNotCreated(f"{name} wasn't created")
 
         if r.status_code == 200:
-            logger.info(f"Device {name} was created")
+            logger.debug(f"Device {name} was created")
             return True
-        logger.info(f"Device {name} was not created")
+        logger.debug(f"Device {name} was not created")
         return False
 
     @retry(httpx.HTTPError, **RETRY_PARAMS)
@@ -181,9 +181,9 @@ class ServerConnector:
             },
         )
         if r.status_code == 200:
-            logger.info(f"Device {rtmp_id} was deleted")
+            logger.debug(f"Device {rtmp_id} was deleted")
             return True
-        logger.info(f"Device {rtmp_id} was not deleted")
+        logger.debug(f"Device {rtmp_id} was not deleted")
         return False
 
     @retry(httpx.HTTPError, **RETRY_PARAMS)
@@ -352,6 +352,6 @@ class ServerConnector:
         )
         data = BaseResponse.parse_raw(r.content)
         if data.ok:
-            logger.info(f"Server {server_id} selected for {rtmp_id}")
+            logger.debug(f"Server {server_id} selected for {rtmp_id}")
             return True
         raise FacecastAPIError(f"Failed to select server {rtmp_id} - {data}")

@@ -45,12 +45,12 @@ class DeviceOutputs(Sequence[DeviceOutput]):
         self._device = device
         self._server_connector = device._server_connector
         self.rtmp_id = device.rtmp_id
-        self._outputs = []
+        self._outputs: List[DeviceOutput] = []
 
     def __str__(self):
-        return "Outputs <{}>".format("\n".join(str(o) for o in self._outputs))
+        return f"Outputs <{len(self._outputs)}>"
 
-    def __getitem__(self, item) -> Device:
+    def __getitem__(self, item) -> DeviceOutput:
         if isinstance(item, int):
             compare_by = lambda d: d.id
         elif isinstance(item, str):
@@ -164,26 +164,26 @@ class Device:
         return True
 
     def start_outputs(self):
-        logger.info(f"start_outputs: {self.name}")
+        logger.debug(f"start_outputs: {self.name}")
         self.outputs.start_outputs()
         self._update_outputs()
         return True
 
     def stop_outputs(self):
-        logger.info(f"stop_outputs: {self.name}")
+        logger.debug(f"stop_outputs: {self.name}")
         self.outputs.stop_outputs()
         self._update_outputs()
         return True
 
     def delete_outputs(self):
-        logger.info(f"delete_outputs: {self.name}")
+        logger.debug(f"delete_outputs: {self.name}")
         for o in self.outputs:
             logger.debug(o.delete())
         self._update_outputs()
         return True
 
     def delete(self):
-        logger.info(f"delete_device: {self.name}")
+        logger.debug(f"delete_device: {self.name}")
         self.delete_outputs()
         self._server_connector.delete_device(self.rtmp_id)
         return True
@@ -253,7 +253,7 @@ class Devices(Sequence[Device]):
             self._server_connector.delete_output(dev.rtmp_id, o.id)
         if self._server_connector.delete_device(dev.rtmp_id):
             self._devices.remove(dev)
-            return
+            return True
         raise FacecastAPIError(f"Failed to delete `{name}`")
 
     def delete_all(self):
@@ -276,12 +276,12 @@ class Devices(Sequence[Device]):
     def start_outputs(self):
         for d in self._devices:
             d.start_outputs()
-            logger.info(f"Started for device {d.name}")
+            logger.debug(f"Started for device {d.name}")
 
     def stop_outputs(self):
         for d in self._devices:
             d.stop_outputs()
-            logger.info(f"Stopped for device {d.name}")
+            logger.debug(f"Stopped for device {d.name}")
 
     def _add_new_devices(self):
         new_devices = self._server_connector.get_devices()
