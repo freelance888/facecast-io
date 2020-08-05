@@ -36,14 +36,17 @@ class FacecastAPI:
         if username and password:
             self.do_auth(username, password)
         self.devices: Devices = Devices(self.server_connector)
-        self.devices.update()
+        if self.is_authorized:
+            self.devices.update()
 
     @property
     def is_authorized(self):
         return self.server_connector.is_authorized
 
     def do_auth(self, username, password):
-        return self.server_connector.do_auth(username, password)
+        self.server_connector.do_auth(username, password)
+        if self.is_authorized:
+            self.devices.update()
 
     def get_devices(self, *, update=False) -> Devices:
         if update:
@@ -71,7 +74,7 @@ class FacecastAPI:
                 server_url=stream.server_url,
                 shared_key=stream.shared_key,
             )
-            logger.info(f"{device.name} {output}")
+            logger.debug(f"{device.name} {output}")
         self.devices.update()
         return device
 
