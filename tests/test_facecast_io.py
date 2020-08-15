@@ -24,7 +24,7 @@ def test_devices_crud_operations(api):
     d1 = api.get_or_create_device("TEST_NAME")
     assert d1 is d2
 
-    # TODO: add signals mechanism for backpropagate changes
+    # TODO: add signals mechanism for backpropagation changes
     # prev_len = len(api.devices)
     # assert api.devices["TEST_NAME"].delete()
     # assert len(api.devices) == prev_len - 1
