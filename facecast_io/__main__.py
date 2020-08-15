@@ -219,7 +219,6 @@ def provision(lang_code: str,):
         return
 
     if device.outputs:
-        typer.echo(f"You have following outputs: {dis}")
         typer.confirm("Are you sure you want to continue?", abort=True)
 
     for stream in streams_data:

@@ -12,7 +12,7 @@ Installation
 :poetry: poetry add facecast-io
 
 Usage as a library
-****************
+******************
 
 ::
 

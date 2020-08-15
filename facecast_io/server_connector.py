@@ -1,8 +1,5 @@
 import re
 from copy import copy
-from json import JSONDecodeError
-
-from typing import Union
 
 import httpx
 from pydantic import ValidationError
