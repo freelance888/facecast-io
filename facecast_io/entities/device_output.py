@@ -20,10 +20,10 @@ __all__ = [
 
 class DeviceOutput(BaseModel):
     title: str = Field(alias="descr")
-    enabled: int
+    enabled: bool
     type: Literal["rtmp_rtmp"]
     id: int
-    cloud: int
+    cloud: bool
     server_url: str
 
 

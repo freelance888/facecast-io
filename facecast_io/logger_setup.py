@@ -31,7 +31,7 @@ class CustomFormatter(logging.Formatter):
 
 
 logger = logging.getLogger("facecast_io")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 if not logger.handlers:
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)

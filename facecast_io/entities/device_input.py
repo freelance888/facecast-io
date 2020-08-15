@@ -7,8 +7,8 @@ from .common import BaseResponse
 
 class DeviceServerSignal(BaseResponse):
     resolution: Optional[str]
-    fps: Optional[bool]
-    response: Optional[bool]
+    fps: Optional[int]
+    response: Optional[str]
     status: Optional[str]
 
 
