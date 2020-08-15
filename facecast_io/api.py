@@ -33,9 +33,9 @@ class FacecastAPI:
             headers=BASE_HEADERS,
         )
         self.server_connector = ServerConnector(self.client)
+        self.devices: Devices = Devices(self.server_connector)
         if username and password:
             self.do_auth(username, password)
-        self.devices: Devices = Devices(self.server_connector)
         if self.is_authorized:
             self.devices.update()
 
