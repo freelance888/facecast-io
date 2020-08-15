@@ -7,7 +7,7 @@ from facecast_io import __version__, FacecastAPI
 
 
 def test_version():
-    assert __version__ == "0.4.0"
+    assert __version__ == "0.5.0"
 
 
 @pytest.fixture
