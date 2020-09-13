@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "facecast_io"
-version = "0.5.0"
+version = "0.5.1"
 description = "Unofficial API for facecast.io"
 authors = ["Serhii Khalymon <sergiykhalimon@gmail.com>"]
 license = "MIT"
