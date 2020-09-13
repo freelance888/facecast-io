@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Any
 
 from pydantic import BaseModel
 
@@ -8,7 +8,7 @@ from .common import BaseResponse
 class DeviceServerSignal(BaseResponse):
     resolution: Optional[str]
     fps: Optional[int]
-    response: Optional[str]
+    response: Optional[Any]
     status: Optional[str]
 
 
